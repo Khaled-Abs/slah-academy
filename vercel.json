@@ -1,0 +1,14 @@
+{
+  "buildCommand": "echo 'const CONFIG = { SUPABASE_URL: \"'$SUPABASE_URL'\", SUPABASE_ANON_KEY: \"'$SUPABASE_ANON_KEY'\" };' > config.local.js",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<!-- index.html — login page -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion — SLAH Academy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="config.local.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+</head>
+<body class="login-body">
+  <main class="login-wrap">
+    <div>
+      <div class="login-brand">
+        <div class="login-logo">SLAH Academy</div>
+        <div class="login-sub">Espace administration</div>
+      </div>
+      <form class="card login-card" id="loginForm" novalidate>
+        <div class="field">
+          <label class="field-label" for="loginEmail">Adresse email</label>
+          <input type="email" id="loginEmail" name="email" autocomplete="email" placeholder="vous@exemple.com" required>
+        </div>
+        <div class="field">
+          <label class="field-label" for="loginPassword">Mot de passe</label>
+          <input type="password" id="loginPassword" name="password" autocomplete="current-password" required>
+        </div>
+        <div id="loginError" class="login-error" hidden></div>
+        <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Se connecter</button>
+      </form>
+    </div>
+  </main>
+
+  <script>
+  (function () {
+    let configOk = true;
+    try {
+      initSupabase();
+    } catch (error) {
+      configOk = false;
+      console.error(error);
+    }
+
+    const form = document.getElementById('loginForm');
+    const errorEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    const emailInput = document.getElementById('loginEmail');
+    const passwordInput = document.getElementById('loginPassword');
+
+    function showError(message) {
+      errorEl.textContent = message;
+      errorEl.hidden = false;
+    }
+
+    function hideError() {
+      errorEl.textContent = '';
+      errorEl.hidden = true;
+    }
+
+    // Already authenticated → go straight to the app
+    (async function () {
+      if (configOk) {
+        const session = await getSession();
+        if (session) window.location.href = 'app.html';
+      }
+    })();
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      if (!configOk) {
+        showError('Configuration manquante. Vérifiez config.local.js.');
+        return;
+      }
+
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+
+      if (!email || !password) {
+        showError('Email ou mot de passe incorrect.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Connexion…';
+
+      const result = await login(email, password);
+      if (result.ok) {
+        window.location.href = 'app.html';
+        return;
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Se connecter';
+      showError('Email ou mot de passe incorrect.');
+    });
+  })();
+  </script>
+</body>
+</html>
