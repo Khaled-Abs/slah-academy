@@ -18,13 +18,29 @@ const STRUCTURE = [
   { niveau: 'Bac',               classes: ['Maths', 'Physique', 'Sciences'] }
 ];
 
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('Rejet non géré:', e.reason);
+  if (!(e.reason && e.reason.redirecting)) {
+    showToast('Erreur inattendue. Réessayez.', 'error');
+  }
+});
+
+window.addEventListener('error', (e) => {
+  console.error('Erreur JavaScript:', e.error || e.message);
+  showToast('Erreur inattendue. Réessayez.', 'error');
+});
+
+function isAuthRedirect(error) {
+  return !!(error && error.redirecting);
+}
+
 async function navigateTo(view, niveau = null, classe = null, studentId = null) {
   currentView = view;
   currentNiveau = niveau;
   currentClasse = classe;
   highlightStudentId = studentId;
   renderSidebar(niveau, classe);
-  showLoadingState();
+  const token = showLoadingState();
 
   try {
     if (view === 'dashboard') {
@@ -39,16 +55,22 @@ async function navigateTo(view, niveau = null, classe = null, studentId = null) 
     }
   } catch (error) {
     console.error(error);
-    showToast(error.message || 'Erreur inattendue.', 'error');
-    renderEmptyState(document.getElementById('mainContent'), error.message || 'Erreur inattendue.');
+    if (!isAuthRedirect(error)) {
+      showToast(error.message || 'Erreur inattendue.', 'error');
+      renderEmptyState(document.getElementById('mainContent'), error.message || 'Erreur inattendue.');
+    }
   } finally {
-    hideLoadingState();
+    if (token === loadToken) hideLoadingState();
   }
 }
 
+let loadToken = 0;
+
 function showLoadingState() {
+  loadToken += 1;
   const overlay = document.getElementById('loadingOverlay');
   if (overlay) overlay.hidden = false;
+  return loadToken;
 }
 
 function hideLoadingState() {
@@ -216,6 +238,7 @@ function handleChipClick(chip) {
     } catch (error) {
       console.error(error);
       chip.classList.remove('chip-loading');
+      if (isAuthRedirect(error)) return;
       revert();
       showToast('Erreur — réessayez.', 'error');
     }
@@ -295,6 +318,7 @@ function commitInlineEdit(cancel) {
     .then(() => {})
     .catch((error) => {
       console.error(error);
+      if (isAuthRedirect(error)) return;
       student[field] = previousValue;
       if (field === 'contactParent') refreshComputed(student);
       cell.textContent = previousValue;
@@ -349,6 +373,7 @@ function doDeleteStudent(tr) {
     .catch((error) => {
       console.error(error);
       tr.classList.remove('row-deleting', 'row-confirm');
+      if (isAuthRedirect(error)) return;
       hideDeleteConfirm(tr);
       showToast(error.message || 'Erreur lors de la suppression de l\u2019élève.', 'error');
     });
@@ -429,6 +454,7 @@ function reorderRows(sourceId, targetId, allTr) {
       await Promise.all(changed.map((s) => updateStudent(s.id, { numero: s.numero })));
     } catch (error) {
       console.error(error);
+      if (isAuthRedirect(error)) return;
       classeStudents = classeStudents.map((s) => ({ ...s, numero: previousNumero[s.id] }));
       rebuildTableRows(classeStudents);
       renderSummaryBar(classeStudents);
@@ -495,6 +521,7 @@ function doAddStudent(form) {
     })
     .catch((error) => {
       console.error(error);
+      if (isAuthRedirect(error)) return;
       errorEl.textContent = error.message || 'Erreur lors de l\u2019ajout de l\u2019élève.';
       errorEl.hidden = false;
     })

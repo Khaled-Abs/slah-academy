@@ -143,6 +143,7 @@ function renderClasseView(niveau, classe, students, highlightId) {
   const tbody = main.querySelector('#studentTable tbody');
   if (tbody) {
     students.forEach((s) => tbody.appendChild(renderStudentRow(s)));
+    if (!students.length) renderEmptyTable();
   }
 
   renderAddPanel(niveau, classe, nextNumero);

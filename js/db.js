@@ -12,7 +12,18 @@ function handleDbError(error) {
   console.error(error);
   if (isAuthError(error)) {
     window.location.href = 'index.html';
+    const sessionError = new Error('Session expirée. Veuillez vous reconnecter.');
+    sessionError.redirecting = true;
+    return sessionError;
   }
+  return null;
+}
+
+function toFrenchError(error, frenchMessage) {
+  if (error && error.redirecting) throw error;
+  const sessionError = handleDbError(error);
+  if (sessionError) throw sessionError;
+  throw new Error(frenchMessage);
 }
 
 function emptyPaiements() {
@@ -61,8 +72,7 @@ async function getStudents(niveau, classe, anneeScolaire) {
     if (error) throw error;
     return data || [];
   } catch (error) {
-    handleDbError(error);
-    throw new Error('Erreur lors du chargement des élèves.');
+    toFrenchError(error, 'Erreur lors du chargement des élèves.');
   }
 }
 
@@ -76,8 +86,7 @@ async function getPaiements(studentIds) {
     if (error) throw error;
     return data || [];
   } catch (error) {
-    handleDbError(error);
-    throw new Error('Erreur lors du chargement des paiements.');
+    toFrenchError(error, 'Erreur lors du chargement des paiements.');
   }
 }
 
@@ -93,7 +102,7 @@ async function getClasseData(niveau, classe, anneeScolaire) {
     });
     return students.map((row) => enrichStudent(row, byStudent));
   } catch (error) {
-    throw error;
+    toFrenchError(error, 'Erreur lors du chargement des élèves.');
   }
 }
 
@@ -116,8 +125,7 @@ async function addStudent({ nomComplet, contactParent, niveau, classe, anneeScol
     if (error) throw error;
     return data;
   } catch (error) {
-    handleDbError(error);
-    throw new Error("Erreur lors de l'ajout de l'élève.");
+    toFrenchError(error, "Erreur lors de l'ajout de l'élève.");
   }
 }
 
@@ -131,8 +139,7 @@ async function updateStudent(id, fields) {
     if (error) throw error;
     return true;
   } catch (error) {
-    handleDbError(error);
-    throw new Error("Erreur lors de la modification de l'élève.");
+    toFrenchError(error, "Erreur lors de la modification de l'élève.");
   }
 }
 
@@ -142,8 +149,7 @@ async function deleteStudent(id) {
     if (error) throw error;
     return true;
   } catch (error) {
-    handleDbError(error);
-    throw new Error("Erreur lors de la suppression de l'élève.");
+    toFrenchError(error, "Erreur lors de la suppression de l'élève.");
   }
 }
 
@@ -159,8 +165,7 @@ async function setPaiement(studentId, mois, statut) {
     if (error) throw error;
     return true;
   } catch (error) {
-    handleDbError(error);
-    throw new Error('Erreur lors de la mise à jour du paiement.');
+    toFrenchError(error, 'Erreur lors de la mise à jour du paiement.');
   }
 }
 
@@ -174,8 +179,7 @@ async function deletePaiement(studentId, mois) {
     if (error) throw error;
     return true;
   } catch (error) {
-    handleDbError(error);
-    throw new Error('Erreur lors de la mise à jour du paiement.');
+    toFrenchError(error, 'Erreur lors de la mise à jour du paiement.');
   }
 }
 
@@ -193,7 +197,7 @@ async function getLateStudents(anneeScolaire) {
       .map((row) => enrichStudent(row, byStudent))
       .filter((s) => s.computed.hasRetard);
   } catch (error) {
-    throw error;
+    toFrenchError(error, 'Erreur lors du chargement des élèves.');
   }
 }
 
@@ -233,7 +237,6 @@ async function getStats(anneeScolaire) {
       onTimeRate: totalStudents > 0 ? Math.round((paidThisMonth / totalStudents) * 100) : 0
     };
   } catch (error) {
-    handleDbError(error);
-    throw new Error('Erreur lors du chargement des statistiques.');
+    toFrenchError(error, 'Erreur lors du chargement des statistiques.');
   }
 }
