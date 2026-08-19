@@ -57,13 +57,13 @@ function enrichStudent(row, paiementsByStudent) {
 }
 
 async function getUserOnce() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await supabaseClientClient.auth.getUser();
   return user;
 }
 
 async function getStudents(niveau, classe, anneeScolaire) {
   try {
-    let query = supabase.from('students').select('*');
+    let query = supabaseClient.from('students').select('*');
     if (niveau) query = query.eq('niveau', niveau);
     if (classe) query = query.eq('classe', classe);
     if (anneeScolaire) query = query.eq('annee_scolaire', anneeScolaire);
@@ -79,7 +79,7 @@ async function getStudents(niveau, classe, anneeScolaire) {
 async function getPaiements(studentIds) {
   try {
     if (!studentIds.length) return [];
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('paiements')
       .select('*')
       .in('student_id', studentIds);
@@ -109,7 +109,7 @@ async function getClasseData(niveau, classe, anneeScolaire) {
 async function addStudent({ nomComplet, contactParent, niveau, classe, anneeScolaire, numero }) {
   try {
     const user = await getUserOnce();
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('students')
       .insert({
         nom_complet: nomComplet,
@@ -135,7 +135,7 @@ async function updateStudent(id, fields) {
     if ('nomComplet' in fields) payload.nom_complet = fields.nomComplet;
     if ('contactParent' in fields) payload.contact_parent = fields.contactParent;
     if ('numero' in fields) payload.numero = fields.numero;
-    const { error } = await supabase.from('students').update(payload).eq('id', id);
+    const { error } = await supabaseClientClient.from('students').update(payload).eq('id', id);
     if (error) throw error;
     return true;
   } catch (error) {
@@ -145,7 +145,7 @@ async function updateStudent(id, fields) {
 
 async function deleteStudent(id) {
   try {
-    const { error } = await supabase.from('students').delete().eq('id', id);
+    const { error } = await supabaseClientClient.from('students').delete().eq('id', id);
     if (error) throw error;
     return true;
   } catch (error) {
@@ -156,7 +156,7 @@ async function deleteStudent(id) {
 async function setPaiement(studentId, mois, statut) {
   try {
     const user = await getUserOnce();
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from('paiements')
       .upsert(
         { student_id: studentId, mois, statut, user_id: user.id },
@@ -171,7 +171,7 @@ async function setPaiement(studentId, mois, statut) {
 
 async function deletePaiement(studentId, mois) {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from('paiements')
       .delete()
       .eq('student_id', studentId)
