@@ -57,7 +57,7 @@ function enrichStudent(row, paiementsByStudent) {
 }
 
 async function getUserOnce() {
-  const { data: { user } } = await supabaseClientClient.auth.getUser();
+  const { data: { user } } = await supabaseClient.auth.getUser();
   return user;
 }
 
@@ -135,7 +135,7 @@ async function updateStudent(id, fields) {
     if ('nomComplet' in fields) payload.nom_complet = fields.nomComplet;
     if ('contactParent' in fields) payload.contact_parent = fields.contactParent;
     if ('numero' in fields) payload.numero = fields.numero;
-    const { error } = await supabaseClientClient.from('students').update(payload).eq('id', id);
+    const { error } = await supabaseClient.from('students').update(payload).eq('id', id);
     if (error) throw error;
     return true;
   } catch (error) {
@@ -145,7 +145,7 @@ async function updateStudent(id, fields) {
 
 async function deleteStudent(id) {
   try {
-    const { error } = await supabaseClientClient.from('students').delete().eq('id', id);
+    const { error } = await supabaseClient.from('students').delete().eq('id', id);
     if (error) throw error;
     return true;
   } catch (error) {
