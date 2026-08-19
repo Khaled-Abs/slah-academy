@@ -28,6 +28,14 @@ async function getSession() {
   }
 }
 
+function clearSession() {
+  try {
+    if (supabaseClient) supabaseClient.auth.signOut().catch(() => {});
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 async function login(email, password) {
   try {
     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });

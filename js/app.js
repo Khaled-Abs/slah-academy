@@ -65,15 +65,23 @@ async function navigateTo(view, niveau = null, classe = null, studentId = null) 
 }
 
 let loadToken = 0;
+let loadWatchdog = null;
 
 function showLoadingState() {
   loadToken += 1;
   const overlay = document.getElementById('loadingOverlay');
   if (overlay) overlay.hidden = false;
+  clearTimeout(loadWatchdog);
+  loadWatchdog = setTimeout(() => {
+    const ov = document.getElementById('loadingOverlay');
+    if (ov) ov.hidden = true;
+    showToast('Chargement trop long. Vérifiez votre connexion.', 'error');
+  }, 10000);
   return loadToken;
 }
 
 function hideLoadingState() {
+  clearTimeout(loadWatchdog);
   const overlay = document.getElementById('loadingOverlay');
   if (overlay) overlay.hidden = true;
 }

@@ -11,7 +11,8 @@ function isAuthError(error) {
 function handleDbError(error) {
   console.error(error);
   if (isAuthError(error)) {
-    window.location.href = 'index.html';
+    clearSession();
+    window.location.href = 'index.html?expired=1';
     const sessionError = new Error('Session expirée. Veuillez vous reconnecter.');
     sessionError.redirecting = true;
     return sessionError;

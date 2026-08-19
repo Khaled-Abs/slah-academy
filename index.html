@@ -62,8 +62,9 @@
     }
 
     // Already authenticated → go straight to the app
+    // (?expired=1 means we were force-logged-out; wait for manual login)
     (async function () {
-      if (configOk) {
+      if (configOk && !location.search.includes('expired')) {
         const session = await getSession();
         if (session) window.location.href = 'app.html';
       }
