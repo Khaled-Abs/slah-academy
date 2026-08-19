@@ -145,6 +145,19 @@ Vercel déploie automatiquement à chaque push sur `main` (ou cliquez sur **Depl
 - Les erreurs Supabase brutes ne sont jamais affichées dans l'interface — elles sont traduites en messages français.
 - En cas de session expirée (réponse 401/403), redirection automatique vers `index.html`.
 
+## Utilisation (ajouter vos données)
+
+1. Connectez-vous sur `https://slah-academy.vercel.app` avec l'email/mot de passe de l'enseignant.
+2. Dans la barre latérale gauche, cliquez sur un niveau puis une classe, ex. `7ème Primaire → Classe A`.
+3. **Ajouter un élève** : bouton `+ Ajouter un élève` en haut à droite → Numéro (automatique), Nom complet, Contact parent → `Ajouter`.
+4. **Marquer les paiements** : cliquez sur une cellule du mois (Août → Mai) pour faire défiler les statuts : `·` vide → `✓` payé → `✗` impayé → `~` partiel → retour à vide. Chaque clic est enregistré automatiquement.
+5. **Modifier** : double-cliquez sur un nom ou un contact pour le modifier en ligne (Entrée = valider, Échap = annuler).
+6. **Supprimer** : survolez une ligne → 🗑️ → confirmez avec `Oui`.
+7. **Réordonner** : faites glisser la poignée ↕️ d'une ligne pour changer l'ordre (le numéro est mis à jour).
+8. Le **Tableau de bord** montre le total, les retards (2 mois consécutifs impayés) et la liste des élèves en retard — cliquez sur une ligne pour aller à sa classe.
+
+Toutes les données sont enregistrées dans Supabase et restent après rechargement de la page.
+
 ## Mise à jour de l'année scolaire
 
 Dans `js/app.js`, mettez à jour `const ANNEE = '2024-2025'` au début de chaque année scolaire.
