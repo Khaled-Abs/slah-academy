@@ -63,11 +63,9 @@ function whatsappLink(tel) {
     .replace(/^\+/, '');
   if (clean.startsWith('00')) {
     clean = '216' + clean.slice(2);
-  } else if (clean.startsWith('216') && clean.length === 11) {
-    // already full intl format — nothing to do
   } else if (clean.startsWith('0')) {
     clean = '216' + clean.slice(1);
-  } else {
+  } else if (!clean.startsWith('216')) {
     clean = '216' + clean;
   }
   return 'https://wa.me/' + clean;
