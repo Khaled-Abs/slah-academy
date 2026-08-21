@@ -48,16 +48,31 @@ async function navigateTo(view, niveau = null, classe = null, studentId = null) 
         getLateStudents(ANNEE),
         getStats(ANNEE)
       ]);
+      if (token !== loadToken) return;
       renderDashboard(lateStudents, stats);
     } else if (view === 'classe') {
-      classeStudents = await getClasseData(niveau, classe, ANNEE);
-      renderClasseView(niveau, classe, classeStudents, studentId);
+      const students = await getClasseData(niveau, classe, ANNEE);
+      if (token !== loadToken) return;
+      classeStudents = students;
+      renderClasseView(niveau, classe, students, studentId);
     }
   } catch (error) {
     console.error(error);
     if (!isAuthRedirect(error)) {
       showToast(error.message || 'Erreur inattendue.', 'error');
-      renderEmptyState(document.getElementById('mainContent'), error.message || 'Erreur inattendue.');
+      const main = document.getElementById('mainContent');
+      if (main) {
+        const msg = esc(error.message || 'Erreur inattendue.');
+        main.innerHTML = `
+          <div class="error-state">
+            <div class="error-state-msg">${msg}</div>
+            <button class="btn btn-primary" id="btnRetry">Réessayer</button>
+          </div>`;
+        const retryBtn = document.getElementById('btnRetry');
+        if (retryBtn) {
+          retryBtn.addEventListener('click', () => navigateTo(view, niveau, classe, studentId));
+        }
+      }
     }
   } finally {
     if (token === loadToken) hideLoadingState();
@@ -563,4 +578,8 @@ function enrichStudentLocal(row) {
 
 document.addEventListener('keydown', handleInlineKeydown);
 
-init();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => { init(); });
+} else {
+  init();
+}

@@ -46,3 +46,24 @@ async function logout() {
     console.error(error);
   }
 }
+
+// Wipes stored tokens and drops the cached client. Called when a DB call
+// surfaces a 401/403 — the session is gone, so we must clear local state
+// before redirecting to the login page.
+function clearSession() {
+  try {
+    if (supabaseClient && supabaseClient.auth && typeof supabaseClient.auth.signOut === 'function') {
+      supabaseClient.auth.signOut().catch(() => {});
+    }
+  } catch (error) {
+    // ignore — we're already clearing out
+  }
+  try {
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('sb-') || key.includes('supabase')) localStorage.removeItem(key);
+    });
+  } catch (error) {
+    // ignore — storage may be unavailable
+  }
+  supabaseClient = null;
+}

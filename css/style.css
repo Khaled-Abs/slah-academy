@@ -782,6 +782,19 @@ tr:hover .drag-handle {
   color: var(--paye);
 }
 
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 60px 20px;
+}
+
+.error-state-msg {
+  font-size: 14px;
+  color: var(--impaye);
+}
+
 /* ---------- Toasts ---------- */
 .toast-container {
   position: fixed;

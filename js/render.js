@@ -130,7 +130,7 @@ function renderClasseView(niveau, classe, students, highlightId) {
     </header>
 
     <div id="addPanelContainer"></div>
-    <div id="summaryBar"></div>
+    <div id="summaryBar" class="summary-bar"></div>
 
     <section class="card table-card">
       <div class="table-wrap">
