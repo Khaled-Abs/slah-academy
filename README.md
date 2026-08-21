@@ -79,6 +79,26 @@ using (auth.role() = 'authenticated')
 with check (auth.role() = 'authenticated');
 ```
 
+**Table `sessions` (calendrier) + RLS :**
+
+```sql
+create table sessions (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz default now(),
+  titre text not null,
+  debut timestamptz not null,
+  fin timestamptz,
+  user_id uuid references auth.users(id) on delete cascade
+);
+
+alter table sessions enable row level security;
+
+create policy "Shared access for authenticated users"
+on sessions for all
+using (auth.role() = 'authenticated')
+with check (auth.role() = 'authenticated');
+```
+
 ### 3. Créer le compte enseignant
 
 Dans le tableau de bord Supabase : **Authentication → Users → Add user** et créez le compte email + mot de passe de l'enseignant. Ajoutez autant de comptes que nécessaire : ils partagent tous les mêmes données (élèves et paiements).

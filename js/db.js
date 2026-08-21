@@ -251,3 +251,56 @@ async function getStats(anneeScolaire) {
     toFrenchError(error, 'Erreur lors du chargement des statistiques.');
   }
 }
+/* ---------- Séances (calendrier) ---------- */
+
+async function getSessions() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('sessions')
+      .select('*')
+      .order('debut', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors du chargement des séances.');
+  }
+}
+
+async function addSession({ titre, debut, fin }) {
+  try {
+    const user = await getUserOnce();
+    const { data, error } = await supabaseClient
+      .from('sessions')
+      .insert({ titre, debut, fin: fin || null, user_id: user.id })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    toFrenchError(error, "Erreur lors de l'ajout de la séance.");
+  }
+}
+
+async function updateSession(id, fields) {
+  try {
+    const payload = {};
+    if ('titre' in fields) payload.titre = fields.titre;
+    if ('debut' in fields) payload.debut = fields.debut;
+    if ('fin' in fields) payload.fin = fields.fin;
+    const { error } = await supabaseClient.from('sessions').update(payload).eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors de la modification de la séance.');
+  }
+}
+
+async function deleteSessionRow(id) {
+  try {
+    const { error } = await supabaseClient.from('sessions').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors de la suppression de la séance.');
+  }
+}

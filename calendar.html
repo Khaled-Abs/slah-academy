@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weekly Session Calendar — SLAH Academy</title>
+  <title>Séances hebdomadaires — SLAH Academy</title>
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.css" rel="stylesheet" />
   <style>
     body {
@@ -48,23 +48,40 @@
       color: white;
       border-radius: 6px;
       font-size: 0.9rem;
+      cursor: pointer;
     }
     .fc-event-title {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .topbar {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding-top: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .back-link {
+      color: #1a73e8;
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+    .back-link:hover { text-decoration: underline; }
     .add-event-form {
       display: flex;
       gap: 10px;
-      margin: 1rem auto;
-      max-width: 1200px;
+      flex: 1;
+      max-width: 480px;
     }
     .add-event-form input {
       flex: 1;
       padding: 0.5rem;
       border: 1px solid #ccc;
       border-radius: 6px;
+      font-size: 0.95rem;
     }
     .add-event-form button {
       padding: 0.5rem 1rem;
@@ -73,74 +90,343 @@
       border: none;
       border-radius: 6px;
       cursor: pointer;
+      white-space: nowrap;
     }
-    .add-event-form button:hover {
-      background: #1557b0;
+    .add-event-form button:hover { background: #1557b0; }
+
+    /* Éditeur de séance */
+    .event-editor {
+      position: fixed;
+      top: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      width: min(360px, calc(100vw - 32px));
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
-    .back-link {
-      display: inline-block;
-      margin: 1rem 0 0 2rem;
-      color: #1a73e8;
-      text-decoration: none;
+    .event-editor[hidden] { display: none; }
+    .editor-title-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #667;
+    }
+    .event-editor input {
+      padding: 0.55rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
       font-size: 0.95rem;
+      outline: none;
     }
-    .back-link:hover {
-      text-decoration: underline;
+    .event-editor input:focus { border-color: #1a73e8; }
+    .editor-start {
+      font-size: 12px;
+      color: #667;
+    }
+    .editor-error {
+      font-size: 12px;
+      color: #d33;
+    }
+    .editor-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .editor-actions button {
+      padding: 0.45rem 0.9rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.88rem;
+    }
+    #editorSave { background: #1a73e8; color: #fff; }
+    #editorSave:hover { background: #1557b0; }
+    #editorDelete { background: #fdecea; color: #c0392b; }
+    #editorDelete:hover { background: #fadbd8; }
+    #editorCancel { background: #eef0f4; color: #333; margin-left: auto; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 100;
+      background: #222;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+    .toast.error { background: #b3261e; }
+    .loading-note {
+      max-width: 1200px;
+      margin: 0 auto;
+      color: #667;
+      font-size: 0.85rem;
+      padding: 0 4px 6px;
     }
   </style>
 </head>
 <body>
-  <a class="back-link" href="app.html">← Retour au tableau de bord</a>
-  <div class="add-event-form">
-    <input type="text" id="eventTitle" placeholder="Session Title" />
-    <button onclick="addEvent()">Add Session</button>
+  <div class="topbar">
+    <a class="back-link" href="app.html">← Retour au tableau de bord</a>
+    <div class="add-event-form">
+      <input type="text" id="quickTitle" placeholder="Titre de la séance (aujourd'hui)" />
+      <button onclick="quickAdd()">Ajouter</button>
+    </div>
   </div>
-  <div id="calendar"></div>
+  <div class="loading-note" id="loadingNote">Chargement des séances…</div>
 
+  <div class="event-editor" id="eventEditor" hidden>
+    <span class="editor-title-label" id="editorLabel">Nouvelle séance</span>
+    <input type="text" id="editorTitle" placeholder="Titre de la séance" autocomplete="off" />
+    <div class="editor-start" id="editorStart"></div>
+    <div class="editor-error" id="editorError" hidden></div>
+    <div class="editor-actions">
+      <button type="button" id="editorSave">Enregistrer</button>
+      <button type="button" id="editorDelete" hidden>Supprimer</button>
+      <button type="button" id="editorCancel">Annuler</button>
+    </div>
+  </div>
+
+  <div id="calendar"></div>
+  <div class="toast" id="toast"></div>
+
+  <script src="config.local.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@5.10.1/main.min.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/compute.js"></script>
+  <script src="js/db.js"></script>
   <script>
-    let calendar;
+    let calendar = null;
+    let editingId = null;
+    let pendingStart = null;
 
-    document.addEventListener('DOMContentLoaded', function () {
+    const editorEl = document.getElementById('eventEditor');
+    const editorTitle = document.getElementById('editorTitle');
+    const editorStart = document.getElementById('editorStart');
+    const editorError = document.getElementById('editorError');
+    const editorDelete = document.getElementById('editorDelete');
+    const editorLabel = document.getElementById('editorLabel');
+
+    function showToast(message, type) {
+      const t = document.getElementById('toast');
+      t.textContent = message;
+      t.className = 'toast show' + (type === 'error' ? ' error' : '');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => { t.className = 'toast'; }, 3000);
+    }
+
+    function fmtDate(value) {
+      try {
+        return new Date(value).toLocaleString('fr-FR', {
+          weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+        });
+      } catch (e) { return String(value); }
+    }
+
+    function openEditor(options) {
+      editingId = options.id || null;
+      pendingStart = options.start || null;
+      editorTitle.value = options.title || '';
+      editorLabel.textContent = options.id ? 'Modifier la séance' : 'Nouvelle séance';
+      editorStart.textContent = options.start ? 'Début : ' + fmtDate(options.start) : '';
+      editorError.hidden = true;
+      editorDelete.hidden = !options.id;
+      editorEl.hidden = false;
+      editorTitle.focus();
+    }
+
+    function closeEditor() {
+      editorEl.hidden = true;
+      editingId = null;
+      pendingStart = null;
+    }
+
+    function isAuthRedirect(error) {
+      return !!(error && error.redirecting);
+    }
+
+    async function refreshEvents() {
+      const note = document.getElementById('loadingNote');
+      try {
+        const rows = await getSessions();
+        if (!calendar) return;
+        calendar.removeAllEvents();
+        rows.forEach((r) => {
+          calendar.addEvent({ id: r.id, title: r.titre, start: r.debut, end: r.fin });
+        });
+        note.textContent = rows.length ? '' : 'Aucune séance enregistrée — cliquez sur le planning pour en créer une.';
+      } catch (error) {
+        console.error(error);
+        note.textContent = '';
+        if (!isAuthRedirect(error)) showToast(error.message || 'Erreur lors du chargement.', 'error');
+      }
+    }
+
+    function handleDateClick(info) {
+      openEditor({ start: info.dateStr });
+    }
+
+    function handleEventClick(info) {
+      openEditor({
+        id: info.event.id,
+        title: info.event.title,
+        start: info.event.start ? info.event.start.toISOString() : null
+      });
+    }
+
+    async function handleEventDrop(info) {
+      await persistTiming(info);
+    }
+
+    async function handleEventResize(info) {
+      await persistTiming(info);
+    }
+
+    async function persistTiming(info) {
+      try {
+        await updateSession(info.event.id, {
+          debut: info.event.start.toISOString(),
+          fin: info.event.end ? info.event.end.toISOString() : null
+        });
+        showToast('Séance déplacée.', 'ok');
+      } catch (error) {
+        console.error(error);
+        info.revert();
+        if (!isAuthRedirect(error)) showToast('Erreur — horaires non enregistrés.', 'error');
+      }
+    }
+
+    async function saveEditor() {
+      const titre = editorTitle.value.trim();
+      if (!titre) {
+        editorError.textContent = 'Le titre est obligatoire.';
+        editorError.hidden = false;
+        return;
+      }
+
+      const saveBtn = document.getElementById('editorSave');
+      saveBtn.disabled = true;
+
+      try {
+        if (editingId) {
+          await updateSession(editingId, { titre });
+          const ev = calendar.getEventById(editingId);
+          if (ev) ev.setProp('title', titre);
+          showToast('Séance modifiée.', 'ok');
+        } else {
+          let debutIso = pendingStart;
+          if (debutIso && /^\d{4}-\d{2}-\d{2}$/.test(debutIso)) debutIso += 'T08:00:00';
+          if (!debutIso) debutIso = new Date().toISOString();
+          const fin = new Date(new Date(debutIso).getTime() + 60 * 60 * 1000).toISOString();
+          const row = await addSession({ titre, debut: debutIso, fin });
+          calendar.addEvent({ id: row.id, title: row.titre, start: row.debut, end: row.fin });
+          document.getElementById('loadingNote').textContent = '';
+          showToast('Séance ajoutée.', 'ok');
+        }
+        closeEditor();
+      } catch (error) {
+        console.error(error);
+        if (!isAuthRedirect(error)) showToast(error.message || 'Erreur — réessayez.', 'error');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    async function deleteEditing() {
+      if (!editingId) return;
+      const id = editingId;
+      try {
+        await deleteSessionRow(id);
+        const ev = calendar.getEventById(id);
+        if (ev) ev.remove();
+        closeEditor();
+        showToast('Séance supprimée.', 'ok');
+      } catch (error) {
+        console.error(error);
+        if (!isAuthRedirect(error)) showToast(error.message || 'Erreur — réessayez.', 'error');
+      }
+    }
+
+    async function quickAdd() {
+      const input = document.getElementById('quickTitle');
+      const titre = input.value.trim();
+      if (!titre) { input.focus(); return; }
+      try {
+        const now = new Date();
+        now.setMinutes(0, 0, 0);
+        const fin = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+        const row = await addSession({ titre, debut: now.toISOString(), fin });
+        calendar.addEvent({ id: row.id, title: row.titre, start: row.debut, end: row.fin });
+        document.getElementById('loadingNote').textContent = '';
+        input.value = '';
+        showToast('Séance ajoutée.', 'ok');
+      } catch (error) {
+        console.error(error);
+        if (!isAuthRedirect(error)) showToast(error.message || 'Erreur — réessayez.', 'error');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async function () {
+      try {
+        initSupabase();
+      } catch (error) {
+        console.error(error);
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const session = await getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+
       const calendarEl = document.getElementById('calendar');
       calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'timeGridWeek',
         editable: true,
-        events: [
-          { title: 'Meeting', start: '2023-10-09T10:00:00' },
-          { title: 'Lunch', start: '2023-10-09T12:30:00' },
-          { title: 'Review', start: '2023-10-10T14:00:00' }
-        ],
-        eventClick: function (info) {
-          if (confirm('Edit session?')) {
-            info.event.setProp('title', prompt('New title:', info.event.title));
-          }
+        locale: 'fr',
+        firstDay: 1,
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'timeGridWeek,timeGridDay,dayGridMonth'
         },
-        dateClick: function (info) {
-          const title = prompt('Session title:', 'New Session');
-          if (title) {
-            calendar.addEvent({
-              title: title,
-              start: info.dateStr
-            });
-          }
-        }
+        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        allDaySlot: false,
+        events: [],
+        eventClick: handleEventClick,
+        dateClick: handleDateClick,
+        eventDrop: handleEventDrop,
+        eventResize: handleEventResize
       });
       calendar.render();
-    });
 
-    function addEvent() {
-      const title = document.getElementById('eventTitle').value.trim();
-      if (!title) return;
-      const today = new Date();
-      const start = today.toISOString().slice(0, 16);
-      calendar.addEvent({
-        title: title,
-        start: start
+      document.getElementById('editorSave').addEventListener('click', saveEditor);
+      document.getElementById('editorDelete').addEventListener('click', deleteEditing);
+      document.getElementById('editorCancel').addEventListener('click', closeEditor);
+      editorTitle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') saveEditor();
+        if (e.key === 'Escape') closeEditor();
       });
-      document.getElementById('eventTitle').value = '';
-    }
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !editorEl.hidden) closeEditor();
+      });
+
+      await refreshEvents();
+    });
   </script>
 </body>
 </html>
