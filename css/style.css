@@ -1152,7 +1152,7 @@ tr:hover .drag-handle {
   }
 
   html.sb-hidden .sidebar {
-    transform: translateX(calc(-100% + 16px));
+    transform: translateX(calc(-100% + 32px));
   }
 
   .main {
@@ -1160,7 +1160,7 @@ tr:hover .drag-handle {
   }
 
   html.sb-hidden .main {
-    margin-left: 44px;
+    margin-left: 56px;
   }
 
   .sidebar-handle {
@@ -1170,7 +1170,7 @@ tr:hover .drag-handle {
     position: absolute;
     top: 0;
     right: 0;
-    width: 16px;
+    width: 32px;
     height: 100%;
     padding: 0;
     background: var(--surface);
