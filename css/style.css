@@ -1296,7 +1296,8 @@ tr:hover .drag-handle {
   .app-shell,
   .nav-toggle,
   .drawer-backdrop,
-  .toast-container {
+  .toast-container,
+  .loading-overlay {
     display: none !important;
   }
 

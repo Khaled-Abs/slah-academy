@@ -242,7 +242,7 @@ function exportClasseCsv() {
     ].concat(MOIS_ORDER.map((m) => STATUT_LABELS[s.paiements[m]] || ''))
      .concat([`${s.computed.moisPayes}/10`, s.computed.hasRetard ? 'Oui' : 'Non']));
   });
-  const csv = '\uFEFF' + lines
+  const csv = '\uFEFF' + 'sep=;\r\n' + lines
     .map((r) => r.map((v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';'))
     .join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -288,9 +288,12 @@ function buildPrintReport() {
 }
 
 function printClasse() {
-  const holder = document.getElementById('printReport');
-  if (!holder) return;
-  if (!holder.parentElement) document.body.appendChild(holder);
+  let holder = document.getElementById('printReport');
+  if (!holder) {
+    holder = document.createElement('div');
+    holder.id = 'printReport';
+    document.body.appendChild(holder);
+  }
   holder.innerHTML = buildPrintReport();
   window.print();
 }
