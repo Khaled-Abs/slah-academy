@@ -177,6 +177,13 @@ function renderClasseView(niveau, classe, students, highlightId) {
       </div>
       <div class="header-actions">
         <button class="btn btn-ghost" id="btnBackDashboard">Tableau de bord</button>
+        <span class="report-wrap">
+          <button type="button" class="btn btn-ghost" id="btnReport">📄 Rapport ▾</button>
+          <div class="report-menu" id="reportMenu" hidden>
+            <button type="button" class="report-item" data-report-action="print">🖨️ Imprimer</button>
+            <button type="button" class="report-item" data-report-action="csv">📥 Exporter CSV</button>
+          </div>
+        </span>
         <button class="btn btn-primary" id="btnAddStudent">+ Ajouter un élève</button>
       </div>
     </header>

@@ -210,8 +210,89 @@ function setupYearPicker() {
       toggleYearMenu(wrap && wrap.querySelector('.year-menu'));
       return;
     }
-    if (!e.target.closest('.year-wrap')) closeYearMenus();
+    if (!e.target.closest('.year-wrap')) {
+      closeYearMenus();
+      const reportMenu = document.getElementById('reportMenu');
+      if (reportMenu && !e.target.closest('.report-wrap')) reportMenu.hidden = true;
+    }
   });
+}
+
+/* ---------- Rapport classe : impression & export CSV ---------- */
+
+const STATUT_LABELS = { paye: 'Payé', impaye: 'Impayé', partiel: 'Partiel' };
+
+function classeFileSlug() {
+  const raw = `${currentNiveau || 'classe'}-${currentClasse || ''}-${ANNEE}`;
+  return raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-');
+}
+
+function exportClasseCsv() {
+  const head = ['Niveau', 'Classe', 'Année', 'Numéro', 'Nom complet', 'Contact parent', 'Note']
+    .concat(MOIS_ORDER.map((m) => moisLabel(m)))
+    .concat(['Mois payés', 'En retard']);
+  const lines = [head];
+  classeStudents.forEach((s) => {
+    lines.push([
+      s.niveau, s.classe, s.anneeScolaire, s.numero || '', s.nomComplet,
+      s.contactParent || '', s.note || ''
+    ].concat(MOIS_ORDER.map((m) => STATUT_LABELS[s.paiements[m]] || ''))
+     .concat([`${s.computed.moisPayes}/10`, s.computed.hasRetard ? 'Oui' : 'Non']));
+  });
+  const csv = '\uFEFF' + lines
+    .map((r) => r.map((v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';'))
+    .join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rapport-${classeFileSlug()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('Export CSV téléchargé.', 'success');
+}
+
+function buildPrintReport() {
+  const moisCourant = moisCourantKey();
+  const payesCeMois = classeStudents.filter((s) => s.paiements[moisCourant] === 'paye').length;
+  const retards = classeStudents.filter((s) => s.computed.hasRetard).length;
+  const genere = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  let rows = '';
+  [...classeStudents]
+    .sort((a, b) => (a.numero || 0) - (b.numero || 0))
+    .forEach((s) => {
+      let cells = `<td class="p-num">${s.numero || ''}</td><td class="p-nom">${esc(s.nomComplet)}${s.note ? `<span class="p-note">${esc(s.note)}</span>` : ''}</td><td>${esc(s.contactParent || '')}</td>`;
+      MOIS_ORDER.forEach((m) => { cells += `<td class="p-mois">${statutGlyph(s.paiements[m])}</td>`; });
+      cells += `<td class="p-payes">${s.computed.moisPayes}/10</td><td class="p-retard">${s.computed.hasRetard ? '⚠' : ''}</td>`;
+      rows += `<tr>${cells}</tr>`;
+    });
+
+  let heads = '<tr><th>#</th><th>Nom complet</th><th>Contact</th>';
+  MOIS_ORDER.forEach((m) => { heads += `<th>${esc(MOIS_COURTS[m])}</th>`; });
+  heads += '<th>Payés</th><th>Retard</th></tr>';
+
+  return `
+    <div class="p-head">
+      <div class="p-title">SLAH Academy — ${esc(currentNiveau || '')} · ${esc(currentClasse || '')}</div>
+      <div class="p-sub">Année ${esc(ANNEE)} · Généré le ${genere}</div>
+      <div class="p-stats">${classeStudents.length} élèves · ${payesCeMois} payés en ${esc(moisLabel(moisCourant))} · ${retards} en retard</div>
+    </div>
+    <table class="p-table"><thead>${heads}</thead><tbody>${rows || '<tr><td colspan="15" class="p-empty">Aucun élève.</td></tr>'}</tbody></table>
+    <div class="p-legend">Légende : ✓ payé · ✗ impayé · ~ partiel · · non renseigné</div>`;
+}
+
+function printClasse() {
+  const holder = document.getElementById('printReport');
+  if (!holder) return;
+  if (!holder.parentElement) document.body.appendChild(holder);
+  holder.innerHTML = buildPrintReport();
+  window.print();
 }
 
 async function init() {
@@ -292,6 +373,22 @@ function handleGlobalClick(e) {
   const backBtn = e.target.closest('#btnBackDashboard');
   if (backBtn) {
     navigateTo('dashboard');
+    return;
+  }
+
+  // Rapport : menu imprimer / exporter
+  const reportBtn = e.target.closest('#btnReport');
+  if (reportBtn) {
+    const menu = document.getElementById('reportMenu');
+    if (menu) menu.hidden = !menu.hidden;
+    return;
+  }
+  const reportAction = e.target.closest('[data-report-action]');
+  if (reportAction) {
+    const menu = document.getElementById('reportMenu');
+    if (menu) menu.hidden = true;
+    if (reportAction.dataset.reportAction === 'csv') exportClasseCsv();
+    else printClasse();
     return;
   }
 
