@@ -6,7 +6,27 @@ let currentClasse = null;
 let highlightStudentId = null;
 let classeStudents = [];
 
-const ANNEE = '2026-2027';
+/* ---------- School year ---------- */
+const YEAR_COUNT = 10;
+
+function baseAnnee() {
+  const now = new Date();
+  const y = now.getFullYear();
+  return now.getMonth() >= 7 ? y : y - 1; // nouvelle saison dès août
+}
+
+function anneesProposees() {
+  const b = baseAnnee();
+  return Array.from({ length: YEAR_COUNT }, (_, i) => `${b + i}-${b + i + 1}`);
+}
+
+let ANNEE = (function () {
+  try {
+    const saved = localStorage.getItem('slah_annee');
+    if (saved && /^\d{4}-\d{4}$/.test(saved)) return saved;
+  } catch (error) { /* ignore */ }
+  return `${baseAnnee()}-${baseAnnee() + 1}`;
+})();
 
 const STRUCTURE = [
   { niveau: '7ème Primaire',     classes: ['Classe A', 'Classe B'] },
@@ -101,6 +121,57 @@ function hideLoadingState() {
   if (overlay) overlay.hidden = true;
 }
 
+/* ---------- Sélecteur d'année scolaire ---------- */
+
+function closeYearMenus() {
+  document.querySelectorAll('.year-menu').forEach((m) => { m.hidden = true; });
+}
+
+function toggleYearMenu(menu) {
+  if (!menu) return;
+  const willOpen = menu.hidden;
+  closeYearMenus();
+  if (!willOpen) return;
+  menu.hidden = false;
+  menu.innerHTML = '<div class="year-loading">…</div>';
+  fillYearMenu(menu);
+}
+
+async function fillYearMenu(menu) {
+  let dbYears = [];
+  try {
+    dbYears = await getAnneesScolaires() || [];
+  } catch (error) {
+    console.error(error);
+  }
+  if (menu.hidden) return;
+  const years = [...new Set([...dbYears, ANNEE, ...anneesProposees()])].sort();
+  renderYearOptions(menu, years, ANNEE);
+}
+
+async function setAnnee(annee) {
+  closeYearMenus();
+  if (!/^\d{4}-\d{4}$/.test(annee) || annee === ANNEE) return;
+  ANNEE = annee;
+  try { localStorage.setItem('slah_annee', ANNEE); } catch (error) { /* ignore */ }
+  const badge = document.getElementById('anneeBadge');
+  if (badge) badge.textContent = ANNEE.replace('-', '\u2013');
+  await navigateTo(currentView === 'classe' ? 'classe' : 'dashboard', currentNiveau, currentClasse);
+}
+
+function setupYearPicker() {
+  document.addEventListener('click', (e) => {
+    const option = e.target.closest('[data-annee]');
+    if (option) { setAnnee(option.dataset.annee); return; }
+    if (e.target.closest('#anneeBadge') || e.target.closest('#yearPill')) {
+      const wrap = e.target.closest('.year-wrap');
+      toggleYearMenu(wrap && wrap.querySelector('.year-menu'));
+      return;
+    }
+    if (!e.target.closest('.year-wrap')) closeYearMenus();
+  });
+}
+
 async function init() {
   try {
     initSupabase();
@@ -120,6 +191,9 @@ async function init() {
   if (emailEl && session.user && session.user.email) {
     emailEl.textContent = session.user.email;
   }
+
+  const badge = document.getElementById('anneeBadge');
+  if (badge) badge.textContent = ANNEE.replace('-', '\u2013');
 
   // Event delegation: sidebar navigation
   const sideNav = document.getElementById('sideNav');
@@ -150,6 +224,7 @@ async function init() {
   document.addEventListener('submit', handleGlobalSubmit);
 
   setupDragAndDrop();
+  setupYearPicker();
 
   await navigateTo('dashboard');
 }

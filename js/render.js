@@ -62,7 +62,10 @@ function renderDashboard(lateStudents, stats) {
       <div>
         <h1>Tableau de bord</h1>
         <p class="subtitle">Suivi des paiements — SLAH Academy</p>
-        <span class="year-pill">Année: ${esc(ANNEE)} ▾</span>
+        <span class="year-wrap">
+          <button type="button" class="year-pill" id="yearPill">Année: ${esc(ANNEE)} ▾</button>
+          <div class="year-menu" id="yearMenu" hidden></div>
+        </span>
       </div>
     </header>
 
@@ -279,6 +282,13 @@ function showToast(message, type = 'info') {
   setTimeout(() => {
     toast.remove();
   }, 3000);
+}
+
+function renderYearOptions(menu, years, activeAnnee) {
+  if (!menu) return;
+  menu.innerHTML = years.map((y) =>
+    `<button type="button" class="year-option${y === activeAnnee ? ' current' : ''}" data-annee="${esc(y)}">${esc(y)}</button>`
+  ).join('');
 }
 
 function renderEmptyTable() {

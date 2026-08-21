@@ -158,9 +158,9 @@ Vercel déploie automatiquement à chaque push sur `main` (ou cliquez sur **Depl
 
 Toutes les données sont enregistrées dans Supabase et restent après rechargement de la page.
 
-## Mise à jour de l'année scolaire
+## Changement d'année scolaire
 
-Dans `js/app.js`, mettez à jour `const ANNEE = '2024-2025'` au début de chaque année scolaire.
+Cliquez sur le badge d'année dans la barre latérale (ou la pilule « Année » du tableau de bord) : les saisons déjà présentes dans la base sont proposées, plus les 10 prochaines années. Le choix est mémorisé sur l'appareil ; chaque année garde ses propres élèves et paiements.
 
 ## Notes
 

@@ -202,6 +202,16 @@ async function getLateStudents(anneeScolaire) {
   }
 }
 
+async function getAnneesScolaires() {
+  try {
+    const { data, error } = await supabaseClient.from('students').select('annee_scolaire');
+    if (error) throw error;
+    return [...new Set((data || []).map((r) => r.annee_scolaire))];
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors du chargement des années scolaires.');
+  }
+}
+
 async function getStats(anneeScolaire) {
   try {
     const students = await getStudents(null, null, anneeScolaire);
