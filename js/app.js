@@ -102,12 +102,15 @@ async function navigateTo(view, niveau = null, classe = null, studentId = null) 
 
   try {
     if (view === 'dashboard') {
-      const [lateStudents, stats] = await Promise.all([
-        getLateStudents(ANNEE),
+      const [allStudents, stats] = await Promise.all([
+        getEnrichedStudents(ANNEE),
         getStats(ANNEE)
       ]);
       if (token !== loadToken) return;
-      renderDashboard(lateStudents, stats);
+      const lateStudents = allStudents.filter((s) => s.computed.hasRetard);
+      const riskStudents = allStudents.filter((s) => !s.computed.hasRetard && moisImpayes(s.paiements).length > 0);
+      const partialStudents = allStudents.filter((s) => MOIS_ORDER.some((m) => s.paiements[m] === 'partiel'));
+      renderDashboard({ lateStudents, riskStudents, partialStudents }, stats);
     } else if (view === 'classe') {
       const students = await getClasseData(niveau, classe, ANNEE);
       if (token !== loadToken) return;
@@ -454,7 +457,7 @@ function applySearchFilter() {
     if (!emptyRow) {
       emptyRow = document.createElement('tr');
       emptyRow.className = 'search-empty';
-      emptyRow.innerHTML = `<td colspan="${MOIS_ORDER.length + 7}" style="text-align:center;color:var(--text-tertiary);padding:28px;"></td>`;
+      emptyRow.innerHTML = `<td colspan="${MOIS_ORDER.length + 8}" style="text-align:center;color:var(--text-tertiary);padding:28px;"></td>`;
       tbody.appendChild(emptyRow);
     }
     emptyRow.style.display = '';
@@ -643,7 +646,7 @@ function commitInlineEdit(cancel) {
   const student = classeStudents.find((s) => s.id === studentId);
   if (!student) return;
 
-  const previousValue = student[field];
+  const previousValue = String(student[field] == null ? '' : student[field]);
   const newValue = cell.textContent.trim();
 
   cell.contentEditable = 'false';
@@ -890,6 +893,7 @@ function enrichStudentLocal(row) {
     id: row.id,
     nomComplet: row.nom_complet,
     contactParent: row.contact_parent || '',
+    note: row.note || '',
     niveau: row.niveau,
     classe: row.classe,
     anneeScolaire: row.annee_scolaire,

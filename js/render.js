@@ -30,32 +30,39 @@ function renderEmptyState(container, message, isSuccess = false) {
   container.innerHTML = `<div class="empty-state${isSuccess ? ' success' : ''}">${esc(message)}</div>`;
 }
 
-function renderDashboard(lateStudents, stats) {
+function buildAlertTable(rows, kind) {
+  if (!rows.length) {
+    if (kind === 'partial') return '<div class="empty-state">Aucun paiement partiel en attente.</div>';
+    if (kind === 'risk') return '<div class="empty-state">Aucun élève à surveiller — tout est en ordre.</div>';
+    return '<div class="empty-state success">✓ Aucun retard de paiement détecté.</div>';
+  }
+  let html = `<div class="table-wrap"><table class="student-table dashboard-table">
+      <thead><tr><th>Niveau</th><th>Classe</th><th>Élève</th><th>Contact</th><th>Mois</th><th>Action</th></tr></thead>
+      <tbody>`;
+  rows.forEach((s) => {
+    const mois = kind === 'partial'
+      ? MOIS_ORDER.filter((m) => s.paiements[m] === 'partiel')
+      : moisImpayes(s.paiements);
+    const chipCls = kind === 'partial' ? 'chip-mois chip-partiel' : 'chip-mois';
+    const chips = mois.map((m) => `<span class="${chipCls}">${esc(moisLabel(m))}</span>`).join('');
+    const wa = s.computed.whatsapp
+      ? `<a class="btn-icon" href="${esc(s.computed.whatsapp)}" target="_blank" rel="noopener" title="WhatsApp">💬</a>`
+      : '';
+    const noteHtml = s.note ? `<span class="cell-note">📝 ${esc(s.note)}</span>` : '';
+    html += `<tr data-niveau="${esc(s.niveau)}" data-classe="${esc(s.classe)}" data-student-id="${esc(s.id)}">
+        <td>${esc(s.niveau)}</td><td>${esc(s.classe)}</td><td>${esc(s.nomComplet)}${noteHtml}</td>
+        <td class="mono">${esc(s.contactParent)}</td><td>${chips}</td><td>${wa}</td>
+      </tr>`;
+  });
+  return html + '</tbody></table></div>';
+}
+
+function renderDashboard(data, stats) {
   const main = document.getElementById('mainContent');
   if (!main) return;
 
   const moisCourant = moisCourantKey();
-
-  let tableHtml = '';
-  if (lateStudents.length) {
-    tableHtml = `<div class="table-wrap"><table class="student-table dashboard-table">
-      <thead><tr><th>Niveau</th><th>Classe</th><th>Élève</th><th>Contact</th><th>Mois impayés</th><th>Action</th></tr></thead>
-      <tbody>`;
-    lateStudents.forEach((s) => {
-      const impayes = moisImpayes(s.paiements);
-      const chips = impayes.map((mois) => `<span class="chip-mois">${esc(moisLabel(mois))}</span>`).join('');
-      const wa = s.computed.whatsapp
-        ? `<a class="btn-icon" href="${esc(s.computed.whatsapp)}" target="_blank" rel="noopener" title="WhatsApp">💬</a>`
-        : '';
-      tableHtml += `<tr data-niveau="${esc(s.niveau)}" data-classe="${esc(s.classe)}" data-student-id="${esc(s.id)}">
-        <td>${esc(s.niveau)}</td><td>${esc(s.classe)}</td><td>${esc(s.nomComplet)}</td>
-        <td class="mono">${esc(s.contactParent)}</td><td>${chips}</td><td>${wa}</td>
-      </tr>`;
-    });
-    tableHtml += '</tbody></table></div>';
-  } else {
-    tableHtml = `<div class="empty-state success">✓ Aucun retard de paiement détecté.</div>`;
-  }
+  const { lateStudents, riskStudents, partialStudents } = data;
 
   main.innerHTML = `
     <header class="page-header dash-header">
@@ -84,6 +91,16 @@ function renderDashboard(lateStudents, stats) {
         <div class="stat-foot">2 mois impayés consécutifs</div>
       </div>
       <div class="card stat-card">
+        <div class="stat-top"><span class="stat-icon ic-warn">👁️</span><span class="stat-label">À risque</span></div>
+        <div class="stat-value${riskStudents.length ? ' val-warn' : ''}">${riskStudents.length}</div>
+        <div class="stat-foot">1 mois impayé · à surveiller</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-top"><span class="stat-icon ic-violet">💰</span><span class="stat-label">Paiements partiels</span></div>
+        <div class="stat-value${partialStudents.length ? ' val-violet' : ''}">${partialStudents.length}</div>
+        <div class="stat-foot">élèves concernés</div>
+      </div>
+      <div class="card stat-card">
         <div class="stat-top"><span class="stat-icon ic-partiel">🗓️</span><span class="stat-label">Mois en cours</span></div>
         <div class="stat-value val-mois">${esc(moisLabel(moisCourant))}</div>
         <div class="stat-foot">Mois scolaire actuel</div>
@@ -97,7 +114,17 @@ function renderDashboard(lateStudents, stats) {
 
     <section class="card table-card">
       <div class="table-card-title">⚠️ Élèves en retard de paiement<span class="count-badge">${lateStudents.length}</span></div>
-      ${tableHtml}
+      ${buildAlertTable(lateStudents, 'late')}
+    </section>
+
+    <section class="card table-card">
+      <div class="table-card-title">👁️ Élèves à surveiller<span class="count-badge count-warn">${riskStudents.length}</span></div>
+      ${buildAlertTable(riskStudents, 'risk')}
+    </section>
+
+    <section class="card table-card">
+      <div class="table-card-title">💰 Paiements partiels<span class="count-badge count-info">${partialStudents.length}</span></div>
+      ${buildAlertTable(partialStudents, 'partial')}
     </section>`;
 
   const retards = main.querySelectorAll('.dashboard-table tbody tr');
@@ -140,7 +167,7 @@ function renderClasseView(niveau, classe, students, highlightId) {
   MOIS_ORDER.forEach((mois) => {
     thead += `<th><span>${esc(MOIS_COURTS[mois])}</span><button type="button" class="th-mark" data-mois="${mois}" title="Classe entière « payé » en ${esc(moisLabel(mois))}">✓</button></th>`;
   });
-  thead += '<th>Payés</th><th>Retard</th><th class="col-actions">Actions</th></tr></thead>';
+  thead += '<th>Note</th><th>Payés</th><th>Retard</th><th class="col-actions">Actions</th></tr></thead>';
 
   main.innerHTML = `
     <header class="page-header">
@@ -217,6 +244,7 @@ function renderStudentRow(student) {
     cells += `<td class="col-mois"><button class="statut-chip ${statutClass(statut)}" data-student-id="${student.id}" data-mois="${mois}" data-statut="${statut}" title="${esc(title)}">${statutGlyph(statut)}</button></td>`;
   });
 
+  cells += `<td class="col-note"><span class="editable-cell" data-field="note" title="${esc(student.note || 'Double-cliquez pour ajouter une note')}">${esc(student.note || '')}</span></td>`;
   cells += `<td class="col-payes"><span class="payes-count ${payesClass}">${student.computed.moisPayes}/10</span></td>`;
   cells += `<td class="col-retard${student.computed.hasRetard ? ' has-retard' : ''}">${student.computed.hasRetard ? '<span class="retard-flag">⚠️</span>' : ''}</td>`;
   cells += `<td class="col-actions"><button class="btn-icon btn-allpaid" title="Tout marquer payé">✅</button><button class="btn-icon btn-delete" title="Supprimer">🗑️</button><span class="drag-handle" title="Réordonner">↕️</span></td>`;
@@ -324,7 +352,7 @@ function renderEmptyTable() {
   const tbody = document.querySelector('#studentTable tbody');
   if (tbody && !tbody.children.length) {
     const row = document.createElement('tr');
-    row.innerHTML = `<td colspan="${10 + 7}" class="empty-cell" style="text-align:center;color:var(--text-tertiary);padding:32px;">Aucun élève dans cette classe.</td>`;
+    row.innerHTML = `<td colspan="${10 + 8}" class="empty-cell" style="text-align:center;color:var(--text-tertiary);padding:32px;">Aucun élève dans cette classe.</td>`;
     tbody.appendChild(row);
   }
 }

@@ -61,6 +61,7 @@ function enrichStudent(row, paiementsByStudent) {
     id: row.id,
     nomComplet: row.nom_complet,
     contactParent: row.contact_parent || '',
+    note: row.note || '',
     niveau: row.niveau,
     classe: row.classe,
     anneeScolaire: row.annee_scolaire,
@@ -154,6 +155,7 @@ async function updateStudent(id, fields) {
     if ('nomComplet' in fields) payload.nom_complet = fields.nomComplet;
     if ('contactParent' in fields) payload.contact_parent = fields.contactParent;
     if ('numero' in fields) payload.numero = fields.numero;
+    if ('note' in fields) payload.note = fields.note;
     const { error } = await supabaseClient.from('students').update(payload).eq('id', id);
     if (error) throw error;
     return true;
@@ -202,7 +204,7 @@ async function deletePaiement(studentId, mois) {
   }
 }
 
-async function getLateStudents(anneeScolaire) {
+async function getEnrichedStudents(anneeScolaire) {
   try {
     const students = await getStudents(null, null, anneeScolaire);
     const ids = students.map((s) => s.id);
@@ -212,9 +214,16 @@ async function getLateStudents(anneeScolaire) {
       if (!byStudent[p.student_id]) byStudent[p.student_id] = {};
       byStudent[p.student_id][p.mois] = p.statut;
     });
-    return students
-      .map((row) => enrichStudent(row, byStudent))
-      .filter((s) => s.computed.hasRetard);
+    return students.map((row) => enrichStudent(row, byStudent));
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors du chargement des élèves.');
+  }
+}
+
+async function getLateStudents(anneeScolaire) {
+  try {
+    const all = await getEnrichedStudents(anneeScolaire);
+    return all.filter((s) => s.computed.hasRetard);
   } catch (error) {
     toFrenchError(error, 'Erreur lors du chargement des élèves.');
   }

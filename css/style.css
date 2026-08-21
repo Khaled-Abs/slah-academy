@@ -556,6 +556,8 @@ a {
 .ic-retard { background: var(--retard-bg); }
 .ic-partiel { background: var(--partiel-bg); }
 .ic-paye { background: var(--paye-bg); }
+.ic-warn { background: var(--partiel-bg); }
+.ic-violet { background: rgba(167, 139, 250, 0.12); }
 
 .stat-label {
   font-size: 11px;
@@ -575,6 +577,47 @@ a {
 .val-retard { color: var(--retard); }
 .val-mois { color: var(--accent); font-size: 22px; line-height: 1.25; }
 .val-paye { color: var(--paye); }
+.val-warn { color: var(--partiel); }
+.val-violet { color: #A78BFA; }
+
+.count-badge.count-warn {
+  background: var(--partiel-bg);
+  color: var(--partiel);
+}
+
+.count-badge.count-info {
+  background: rgba(167, 139, 250, 0.12);
+  color: #A78BFA;
+}
+
+.chip-mois.chip-partiel {
+  background: var(--partiel-bg);
+  border-color: rgba(251, 191, 36, 0.2);
+  color: var(--partiel);
+}
+
+.table-card + .table-card {
+  margin-top: 20px;
+}
+
+.student-table .col-note .editable-cell {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cell-note {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .stat-foot {
   font-family: var(--font-mono);
