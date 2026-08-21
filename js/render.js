@@ -58,26 +58,42 @@ function renderDashboard(lateStudents, stats) {
   }
 
   main.innerHTML = `
-    <header class="page-header">
-      <div>
+    <header class="page-header dash-header">
+      <div class="dash-title">
         <h1>Tableau de bord</h1>
         <p class="subtitle">Suivi des paiements — SLAH Academy</p>
-        <span class="year-wrap">
-          <button type="button" class="year-pill" id="yearPill">Année: ${esc(ANNEE)} ▾</button>
-          <div class="year-menu" id="yearMenu" hidden></div>
-        </span>
       </div>
+      <span class="year-wrap">
+        <button type="button" class="year-pill" id="yearPill">Année: ${esc(ANNEE)} ▾</button>
+        <div class="year-menu" id="yearMenu" hidden></div>
+      </span>
     </header>
 
-    <section class="stats-grid">
-      <div class="card"><div class="stat-value">${stats.totalStudents}</div><div class="stat-label">Élèves (${esc(ANNEE)})</div></div>
-      <div class="card stat-retard"><div class="stat-value">${lateStudents.length}</div><div class="stat-label">Paiements en retard</div></div>
-      <div class="card stat-mois"><div class="stat-value">${esc(moisLabel(moisCourant))}</div><div class="stat-label">Mois en cours</div></div>
-      <div class="card"><div class="stat-value">${stats.onTimeRate}%</div><div class="stat-label">Taux de ponctualité</div></div>
+    <section class="stats-grid dash-stats">
+      <div class="card stat-card">
+        <div class="stat-top"><span class="stat-icon ic-accent">👥</span><span class="stat-label">Élèves inscrits</span></div>
+        <div class="stat-value">${stats.totalStudents}</div>
+        <div class="stat-foot">Saison ${esc(ANNEE)}</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-top"><span class="stat-icon ic-retard">⚠️</span><span class="stat-label">En retard</span></div>
+        <div class="stat-value${lateStudents.length ? ' val-retard' : ''}">${lateStudents.length}</div>
+        <div class="stat-foot">2 mois impayés consécutifs</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-top"><span class="stat-icon ic-partiel">🗓️</span><span class="stat-label">Mois en cours</span></div>
+        <div class="stat-value val-mois">${esc(moisLabel(moisCourant))}</div>
+        <div class="stat-foot">Mois scolaire actuel</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-top"><span class="stat-icon ic-paye">🎯</span><span class="stat-label">Ponctualité</span></div>
+        <div class="stat-value val-paye">${stats.onTimeRate}%</div>
+        <div class="stat-foot">${stats.paidThisMonth}/${stats.totalStudents} payés · dernier mois saisi</div>
+      </div>
     </section>
 
     <section class="card table-card">
-      <div class="table-card-title">⚠️ Élèves en retard de paiement</div>
+      <div class="table-card-title">⚠️ Élèves en retard de paiement<span class="count-badge">${lateStudents.length}</span></div>
       ${tableHtml}
     </section>`;
 

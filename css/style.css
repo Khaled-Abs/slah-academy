@@ -484,6 +484,103 @@ a {
   color: var(--accent);
 }
 
+/* ---------- Dashboard refinements ---------- */
+.main > * {
+  max-width: 1020px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.dash-header {
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.dash-title h1 {
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+
+.dash-title .subtitle {
+  margin-top: 6px;
+}
+
+.dash-stats {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  border-radius: 12px;
+}
+
+.stat-card:hover {
+  border-color: var(--border-strong);
+}
+
+.stat-top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.stat-icon {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.ic-accent { background: var(--accent-bg); }
+.ic-retard { background: var(--retard-bg); }
+.ic-partiel { background: var(--partiel-bg); }
+.ic-paye { background: var(--paye-bg); }
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.val-retard { color: var(--retard); }
+.val-mois { color: var(--accent); font-size: 22px; line-height: 1.25; }
+.val-paye { color: var(--paye); }
+
+.stat-foot {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.count-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 99px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--retard-bg);
+  color: var(--retard);
+}
+
 /* ---------- Summary bar ---------- */
 .summary-bar {
   display: grid;
