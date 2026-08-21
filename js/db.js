@@ -266,12 +266,12 @@ async function getSessions() {
   }
 }
 
-async function addSession({ titre, debut, fin }) {
+async function addSession({ titre, debut, fin, couleur }) {
   try {
     const user = await getUserOnce();
     const { data, error } = await supabaseClient
       .from('sessions')
-      .insert({ titre, debut, fin: fin || null, user_id: user.id })
+      .insert({ titre, debut, fin: fin || null, couleur: couleur || null, user_id: user.id })
       .select()
       .single();
     if (error) throw error;
@@ -287,6 +287,7 @@ async function updateSession(id, fields) {
     if ('titre' in fields) payload.titre = fields.titre;
     if ('debut' in fields) payload.debut = fields.debut;
     if ('fin' in fields) payload.fin = fields.fin;
+    if ('couleur' in fields) payload.couleur = fields.couleur;
     const { error } = await supabaseClient.from('sessions').update(payload).eq('id', id);
     if (error) throw error;
     return true;

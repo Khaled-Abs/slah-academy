@@ -82,14 +82,17 @@ with check (auth.role() = 'authenticated');
 **Table `sessions` (calendrier) + RLS :**
 
 ```sql
-create table sessions (
+create table if not exists sessions (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz default now(),
   titre text not null,
   debut timestamptz not null,
   fin timestamptz,
+  couleur text,
   user_id uuid references auth.users(id) on delete cascade
 );
+
+alter table sessions add column if not exists couleur text;
 
 alter table sessions enable row level security;
 
