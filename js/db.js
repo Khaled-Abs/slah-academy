@@ -2,10 +2,17 @@
 
 function isAuthError(error) {
   if (!error) return false;
-  const status = Number(error.status || error.code || 0);
+  const status = Number(error.status ?? 0);
   if (status === 401 || status === 403) return true;
-  const msg = String(error.message || error.error_description || error.details || '');
-  return /auth|jwt|session|permission|denied|authoriz/i.test(msg);
+  const code = String(error.code || '');
+  if (code.startsWith('PGRST30')) return true; // JWT expiré côté PostgREST
+  const msg = String(
+    error.message || error.error_description || error.details || ''
+  );
+  // Signaux d'authentification NON ambigus uniquement.
+  // L'ancienne règle large (/auth|session|permission/) classait à tort les
+  // erreurs de la table « sessions » (RLS…) comme une fin de session.
+  return /jwt expired|invalid jwt|invalid claim|refresh token|auth session missing|not authenticated|invalid login credentials|user banned|email not confirmed|token used too early|token used too late/i.test(msg);
 }
 
 function handleDbError(error) {
@@ -24,6 +31,14 @@ function toFrenchError(error, frenchMessage) {
   if (error && error.redirecting) throw error;
   const sessionError = handleDbError(error);
   if (sessionError) throw sessionError;
+  const code = String((error && error.code) || '');
+  const msg = String((error && error.message) || '');
+  if (code === '42P01' || /does not exist/i.test(msg)) {
+    throw new Error(frenchMessage + ' Table absente : exécutez le script SQL dans Supabase.');
+  }
+  if (code === '42501') {
+    throw new Error(frenchMessage + ' Accès refusé par la sécurité (RLS).');
+  }
   throw new Error(frenchMessage);
 }
 
