@@ -228,6 +228,7 @@ async function init() {
   setupDragAndDrop();
   setupYearPicker();
   setupMobileNav();
+  setupSidebarPeek();
 
   await navigateTo('dashboard');
 }
@@ -522,6 +523,35 @@ function setupMobileNav() {
     backdrop.hidden = !open;
   });
   backdrop.addEventListener('click', closeDrawer);
+}
+
+/* ---------- Sidebar peek (desktop) ---------- */
+
+function applySidebarHidden(hidden) {
+  document.documentElement.classList.toggle('sb-hidden', hidden);
+  try { localStorage.setItem('slah_sidebar', hidden ? 'hidden' : 'open'); } catch (error) { /* ignore */ }
+}
+
+function setupSidebarPeek() {
+  const handle = document.getElementById('sidebarHandle');
+  const sidebar = document.querySelector('.sidebar');
+  if (!handle || !sidebar) return;
+
+  let hidden = false;
+  try { hidden = localStorage.getItem('slah_sidebar') === 'hidden'; } catch (error) { /* ignore */ }
+  if (hidden) document.documentElement.classList.add('sb-hidden');
+
+  handle.addEventListener('click', () => {
+    hidden = !document.documentElement.classList.contains('sb-hidden');
+    applySidebarHidden(hidden);
+  });
+
+  // Clic en dehors de la barre → la replier
+  document.addEventListener('click', (e) => {
+    if (document.documentElement.classList.contains('sb-hidden')) return;
+    if (e.target.closest('.sidebar')) return;
+    applySidebarHidden(true);
+  });
 }
 
 function updateRowAfterChange(studentId) {

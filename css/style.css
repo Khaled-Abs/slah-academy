@@ -1140,6 +1140,63 @@ tr:hover .drag-handle {
   animation: panel-in 0.16s ease;
 }
 
+/* ---------- Sidebar peek (desktop) ---------- */
+.sidebar-handle {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .sidebar {
+    transition: transform 0.22s ease;
+    will-change: transform;
+  }
+
+  html.sb-hidden .sidebar {
+    transform: translateX(calc(-100% + 16px));
+  }
+
+  .main {
+    transition: margin-left 0.22s ease;
+  }
+
+  html.sb-hidden .main {
+    margin-left: 44px;
+  }
+
+  .sidebar-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 16px;
+    height: 100%;
+    padding: 0;
+    background: var(--surface);
+    border: none;
+    border-left: 1px solid var(--border);
+    color: var(--text-tertiary);
+    cursor: pointer;
+  }
+
+  .sidebar-handle:hover {
+    color: var(--accent);
+    background: var(--surface-2);
+  }
+
+  .handle-chevron {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    transform: rotate(180deg);
+    transition: transform 0.2s ease;
+  }
+
+  html.sb-hidden .handle-chevron {
+    transform: none;
+  }
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
   .main {

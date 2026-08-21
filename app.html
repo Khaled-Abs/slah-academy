@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SLAH Academy — Suivi des paiements</title>
+  <script>try{if(localStorage.getItem('slah_sidebar')==='hidden')document.documentElement.classList.add('sb-hidden')}catch(e){}</script>
   <meta name="description" content="SLAH Academy — suivi des paiements mensuels des élèves.">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -44,6 +45,8 @@
         <div class="user-email" id="userEmail"></div>
         <button class="btn-logout" id="logoutBtn">Se déconnecter</button>
       </div>
+
+      <button type="button" id="sidebarHandle" class="sidebar-handle" title="Afficher / masquer le menu" aria-label="Afficher ou masquer le menu"><span class="handle-chevron">❯</span></button>
     </aside>
 
     <main class="main" id="mainContent"></main>
