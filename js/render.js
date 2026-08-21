@@ -148,7 +148,10 @@ function renderClasseView(niveau, classe, students, highlightId) {
         <h1>${esc(niveau)} — ${esc(classe)}</h1>
         <p class="subtitle">${students.length} élèves · Année ${esc(ANNEE)}</p>
       </div>
-      <button class="btn btn-primary" id="btnAddStudent">+ Ajouter un élève</button>
+      <div class="header-actions">
+        <button class="btn btn-ghost" id="btnBackDashboard">Tableau de bord</button>
+        <button class="btn btn-primary" id="btnAddStudent">+ Ajouter un élève</button>
+      </div>
     </header>
 
     <div id="addPanelContainer"></div>

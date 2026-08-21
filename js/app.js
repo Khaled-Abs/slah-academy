@@ -285,6 +285,13 @@ function handleGlobalClick(e) {
     return;
   }
 
+  // Back to dashboard from a classe view
+  const backBtn = e.target.closest('#btnBackDashboard');
+  if (backBtn) {
+    navigateTo('dashboard');
+    return;
+  }
+
   // Bulk: whole class paid for one month (header ✓)
   const markBtn = e.target.closest('.th-mark');
   if (markBtn) {
