@@ -119,7 +119,7 @@ function renderClasseView(niveau, classe, students, highlightId) {
     + '<th>Contact</th>'
     + '<th class="col-wa">WhatsApp</th>';
   MOIS_ORDER.forEach((mois) => {
-    thead += `<th>${esc(MOIS_COURTS[mois])}</th>`;
+    thead += `<th><span>${esc(MOIS_COURTS[mois])}</span><button type="button" class="th-mark" data-mois="${mois}" title="Classe entière « payé » en ${esc(moisLabel(mois))}">✓</button></th>`;
   });
   thead += '<th>Payés</th><th>Retard</th><th class="col-actions">Actions</th></tr></thead>';
 
@@ -134,6 +134,13 @@ function renderClasseView(niveau, classe, students, highlightId) {
 
     <div id="addPanelContainer"></div>
     <div id="summaryBar" class="summary-bar"></div>
+
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="search" id="studentSearch" placeholder="Rechercher un élève…" autocomplete="off">
+      <button type="button" class="search-clear" id="searchClear" title="Effacer" hidden>✕</button>
+      <span class="search-hint" id="searchHint"></span>
+    </div>
 
     <section class="card table-card">
       <div class="table-wrap">
@@ -190,7 +197,7 @@ function renderStudentRow(student) {
 
   cells += `<td class="col-payes"><span class="payes-count ${payesClass}">${student.computed.moisPayes}/10</span></td>`;
   cells += `<td class="col-retard${student.computed.hasRetard ? ' has-retard' : ''}">${student.computed.hasRetard ? '<span class="retard-flag">⚠️</span>' : ''}</td>`;
-  cells += `<td class="col-actions"><button class="btn-icon btn-delete" title="Supprimer">🗑️</button><span class="drag-handle" title="Réordonner">↕️</span></td>`;
+  cells += `<td class="col-actions"><button class="btn-icon btn-allpaid" title="Tout marquer payé">✅</button><button class="btn-icon btn-delete" title="Supprimer">🗑️</button><span class="drag-handle" title="Réordonner">↕️</span></td>`;
 
   tr.innerHTML = cells;
   return tr;

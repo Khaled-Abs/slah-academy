@@ -75,6 +75,7 @@ async function navigateTo(view, niveau = null, classe = null, studentId = null) 
       if (token !== loadToken) return;
       classeStudents = students;
       renderClasseView(niveau, classe, students, studentId);
+      wireSearch();
     }
   } catch (error) {
     console.error(error);
@@ -201,6 +202,7 @@ async function init() {
     sideNav.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-view], [data-niveau]');
       if (!btn) return;
+      closeDrawer();
       if (btn.dataset.view === 'dashboard') {
         navigateTo('dashboard');
       } else if (btn.dataset.niveau) {
@@ -225,6 +227,7 @@ async function init() {
 
   setupDragAndDrop();
   setupYearPicker();
+  setupMobileNav();
 
   await navigateTo('dashboard');
 }
@@ -238,6 +241,21 @@ function handleGlobalClick(e) {
   const chip = e.target.closest('.statut-chip');
   if (chip) {
     handleChipClick(chip);
+    return;
+  }
+
+  // Bulk: whole class paid for one month (header ✓)
+  const markBtn = e.target.closest('.th-mark');
+  if (markBtn) {
+    beginMonthBulk(markBtn);
+    return;
+  }
+
+  // Bulk: all months paid for one student
+  const allPaidBtn = e.target.closest('.btn-allpaid');
+  if (allPaidBtn) {
+    const tr = allPaidBtn.closest('tr');
+    if (tr) markStudentAllPaid(tr.dataset.studentId);
     return;
   }
 
@@ -351,6 +369,161 @@ function refreshComputed(student) {
   student.computed.whatsapp = whatsappLink(student.contactParent);
 }
 
+/* ---------- Recherche élève ---------- */
+
+function normText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function applySearchFilter() {
+  const input = document.getElementById('studentSearch');
+  if (!input) return;
+  const clearBtn = document.getElementById('searchClear');
+  const hint = document.getElementById('searchHint');
+  const q = normText(input.value.trim());
+  const tbody = document.querySelector('#studentTable tbody');
+  const rows = Array.from(document.querySelectorAll('#studentTable tbody tr[data-student-id]'));
+  let visible = 0;
+
+  rows.forEach((tr) => {
+    const s = classeStudents.find((x) => x.id === tr.dataset.studentId);
+    const hay = s
+      ? `${normText(s.nomComplet)} ${normText(s.contactParent)} ${s.numero || ''}`
+      : normText(tr.textContent);
+    const show = !q || hay.includes(q);
+    tr.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  if (clearBtn) clearBtn.hidden = !input.value;
+  if (hint) hint.textContent = q && rows.length ? `${visible}/${rows.length} affichés` : '';
+
+  let emptyRow = tbody && tbody.querySelector('tr.search-empty');
+  if (!visible && rows.length) {
+    if (!emptyRow) {
+      emptyRow = document.createElement('tr');
+      emptyRow.className = 'search-empty';
+      emptyRow.innerHTML = `<td colspan="${MOIS_ORDER.length + 7}" style="text-align:center;color:var(--text-tertiary);padding:28px;"></td>`;
+      tbody.appendChild(emptyRow);
+    }
+    emptyRow.style.display = '';
+    emptyRow.querySelector('td').textContent = `Aucun élève trouvé pour « ${input.value.trim()} ».`;
+  } else if (emptyRow) {
+    emptyRow.remove();
+  }
+}
+
+function wireSearch() {
+  const input = document.getElementById('studentSearch');
+  if (!input) return;
+  input.addEventListener('input', applySearchFilter);
+  const clearBtn = document.getElementById('searchClear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      applySearchFilter();
+      input.focus();
+    });
+  }
+}
+
+/* ---------- Marquage groupé ---------- */
+
+async function markStudentAllPaid(studentId) {
+  const student = classeStudents.find((s) => s.id === studentId);
+  if (!student) return;
+  const months = MOIS_ORDER.filter((m) => student.paiements[m] !== 'paye');
+  if (!months.length) {
+    showToast('Tous les mois sont déjà payés.', 'info');
+    return;
+  }
+
+  const snapshot = months.map((m) => [m, student.paiements[m]]);
+  months.forEach((m) => { student.paiements[m] = 'paye'; });
+  refreshComputed(student);
+  months.forEach((m) => updateCell(studentId, m, 'paye'));
+  updateRowAfterChange(studentId);
+  renderSummaryBar(classeStudents);
+
+  try {
+    await Promise.all(months.map((m) => setPaiement(studentId, m, 'paye')));
+    showToast(`${months.length} mois mis à jour — élève à jour.`, 'success');
+  } catch (error) {
+    console.error(error);
+    if (isAuthRedirect(error)) return;
+    snapshot.forEach(([m, prev]) => { student.paiements[m] = prev; updateCell(studentId, m, prev); });
+    refreshComputed(student);
+    updateRowAfterChange(studentId);
+    renderSummaryBar(classeStudents);
+    showToast('Erreur — réessayez.', 'error');
+  }
+}
+
+function restoreMonthTh(th, mois) {
+  delete th.dataset.confirming;
+  th.innerHTML = `<span>${esc(MOIS_COURTS[mois])}</span><button type="button" class="th-mark" data-mois="${mois}" title="Classe entière « payé » en ${esc(moisLabel(mois))}">✓</button>`;
+}
+
+function beginMonthBulk(btn) {
+  const th = btn.closest('th');
+  const mois = btn.dataset.mois;
+  if (!th || !mois || th.dataset.confirming === '1') return;
+  if (!classeStudents.some((s) => s.paiements[mois] !== 'paye')) {
+    showToast(`Classe déjà à jour pour ${moisLabel(mois)}.`, 'info');
+    return;
+  }
+  th.dataset.confirming = '1';
+  th.innerHTML = `<button type="button" class="th-bulk-yes">Tout ✓</button><button type="button" class="th-bulk-no">Non</button>`;
+  th.querySelector('.th-bulk-yes').addEventListener('click', () => doMonthBulk(mois, th));
+  th.querySelector('.th-bulk-no').addEventListener('click', () => restoreMonthTh(th, mois));
+}
+
+async function doMonthBulk(mois, th) {
+  th.innerHTML = '<div class="th-loading">…</div>';
+  const targets = classeStudents.filter((s) => s.paiements[mois] !== 'paye');
+
+  try {
+    await Promise.all(targets.map((s) => setPaiement(s.id, mois, 'paye')));
+    targets.forEach((s) => {
+      s.paiements[mois] = 'paye';
+      refreshComputed(s);
+      updateCell(s.id, mois, 'paye');
+      updateRowAfterChange(s.id);
+    });
+    renderSummaryBar(classeStudents);
+    restoreMonthTh(th, mois);
+    showToast(`${targets.length} élève(s) marqués « payé » — ${moisLabel(mois)}.`, 'success');
+  } catch (error) {
+    console.error(error);
+    if (!isAuthRedirect(error)) showToast('Erreur — réessayez.', 'error');
+    restoreMonthTh(th, mois);
+  }
+}
+
+/* ---------- Navigation mobile ---------- */
+
+function closeDrawer() {
+  const sidebar = document.querySelector('.sidebar');
+  const backdrop = document.getElementById('drawerBackdrop');
+  if (sidebar) sidebar.classList.remove('open');
+  if (backdrop) backdrop.hidden = true;
+}
+
+function setupMobileNav() {
+  const toggle = document.getElementById('navToggle');
+  const backdrop = document.getElementById('drawerBackdrop');
+  const sidebar = document.querySelector('.sidebar');
+  if (!toggle || !backdrop || !sidebar) return;
+  toggle.addEventListener('click', () => {
+    const open = sidebar.classList.toggle('open');
+    backdrop.hidden = !open;
+  });
+  backdrop.addEventListener('click', closeDrawer);
+}
+
 function updateRowAfterChange(studentId) {
   const student = classeStudents.find((s) => s.id === studentId);
   if (!student) return;
@@ -454,6 +627,7 @@ function hideDeleteConfirm(tr) {
   tr.classList.remove('row-confirm');
   const newTr = renderStudentRow(student);
   tr.replaceWith(newTr);
+  applySearchFilter();
 }
 
 function doDeleteStudent(tr) {
@@ -465,6 +639,7 @@ function doDeleteStudent(tr) {
       classeStudents = classeStudents.filter((s) => s.id !== studentId);
       tr.remove();
       renderSummaryBar(classeStudents);
+      applySearchFilter();
       showToast('Élève supprimé.', 'success');
       if (!classeStudents.length) renderEmptyTable();
     })
@@ -543,6 +718,7 @@ function reorderRows(sourceId, targetId, allTr) {
 
   rebuildTableRows(classeStudents);
   renderSummaryBar(classeStudents);
+  applySearchFilter();
 
   // Determine which students changed position
   const changed = classeStudents.filter((s) => previousNumero[s.id] !== s.numero);
@@ -613,6 +789,7 @@ function doAddStudent(form) {
       classeStudents.push(newStudent);
       appendStudentRow(newStudent);
       renderSummaryBar(classeStudents);
+      applySearchFilter();
       closeAddPanel();
       form.reset();
       showToast('Élève ajouté.', 'success');
