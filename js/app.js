@@ -6,7 +6,7 @@ let currentClasse = null;
 let highlightStudentId = null;
 let classeStudents = [];
 
-const ANNEE = '2024-2025';
+const ANNEE = '2026-2027';
 
 const STRUCTURE = [
   { niveau: '7ème Primaire',     classes: ['Classe A', 'Classe B'] },
