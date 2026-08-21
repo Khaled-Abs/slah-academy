@@ -1293,6 +1293,13 @@ tr:hover .drag-handle {
 #printReport { display: none; }
 
 @media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    height: auto !important;
+  }
+
   .app-shell,
   .nav-toggle,
   .drawer-backdrop,
