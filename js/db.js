@@ -39,6 +39,9 @@ function toFrenchError(error, frenchMessage) {
   if (code === '42501') {
     throw new Error(frenchMessage + ' Accès refusé par la sécurité (RLS).');
   }
+  if (code === 'PGRST204' || /could not find the .* column/i.test(msg)) {
+    throw new Error(frenchMessage + ' Colonne manquante : exécutez « alter table sessions add column if not exists couleur text; » dans Supabase.');
+  }
   throw new Error(frenchMessage);
 }
 
