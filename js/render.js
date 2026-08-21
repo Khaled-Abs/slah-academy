@@ -63,10 +63,13 @@ function renderDashboard(lateStudents, stats) {
         <h1>Tableau de bord</h1>
         <p class="subtitle">Suivi des paiements — SLAH Academy</p>
       </div>
-      <span class="year-wrap">
-        <button type="button" class="year-pill" id="yearPill">Année: ${esc(ANNEE)} ▾</button>
-        <div class="year-menu" id="yearMenu" hidden></div>
-      </span>
+      <div class="dash-actions">
+        <a class="btn btn-ghost" href="calendar.html" target="_blank" rel="noopener">📅 Calendrier</a>
+        <span class="year-wrap">
+          <button type="button" class="year-pill" id="yearPill">Année: ${esc(ANNEE)} ▾</button>
+          <div class="year-menu" id="yearMenu" hidden></div>
+        </span>
+      </div>
     </header>
 
     <section class="stats-grid dash-stats">

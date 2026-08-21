@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weekly Session Calendar — SLAH Academy</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.css" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f4f9;
+    }
+    #calendar {
+      max-width: 1200px;
+      margin: 2rem auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    .fc-toolbar {
+      background: #1a73e8;
+      color: white;
+      border-radius: 12px 12px 0 0;
+    }
+    .fc-header-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .fc-prev, .fc-next {
+      background: #1a73e8;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .fc-prev:hover, .fc-next:hover {
+      background: #1557b0;
+    }
+    .fc-day-header, .fc-day-number {
+      color: #1a73e8;
+      font-weight: 600;
+    }
+    .fc-event {
+      background: #1a73e8;
+      color: white;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    .fc-event-title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .add-event-form {
+      display: flex;
+      gap: 10px;
+      margin: 1rem auto;
+      max-width: 1200px;
+    }
+    .add-event-form input {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .add-event-form button {
+      padding: 0.5rem 1rem;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .add-event-form button:hover {
+      background: #1557b0;
+    }
+    .back-link {
+      display: inline-block;
+      margin: 1rem 0 0 2rem;
+      color: #1a73e8;
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <a class="back-link" href="app.html">← Retour au tableau de bord</a>
+  <div class="add-event-form">
+    <input type="text" id="eventTitle" placeholder="Session Title" />
+    <button onclick="addEvent()">Add Session</button>
+  </div>
+  <div id="calendar"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@5.10.1/main.min.js"></script>
+  <script>
+    let calendar;
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const calendarEl = document.getElementById('calendar');
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        editable: true,
+        events: [
+          { title: 'Meeting', start: '2023-10-09T10:00:00' },
+          { title: 'Lunch', start: '2023-10-09T12:30:00' },
+          { title: 'Review', start: '2023-10-10T14:00:00' }
+        ],
+        eventClick: function (info) {
+          if (confirm('Edit session?')) {
+            info.event.setProp('title', prompt('New title:', info.event.title));
+          }
+        },
+        dateClick: function (info) {
+          const title = prompt('Session title:', 'New Session');
+          if (title) {
+            calendar.addEvent({
+              title: title,
+              start: info.dateStr
+            });
+          }
+        }
+      });
+      calendar.render();
+    });
+
+    function addEvent() {
+      const title = document.getElementById('eventTitle').value.trim();
+      if (!title) return;
+      const today = new Date();
+      const start = today.toISOString().slice(0, 16);
+      calendar.addEvent({
+        title: title,
+        start: start
+      });
+      document.getElementById('eventTitle').value = '';
+    }
+  </script>
+</body>
+</html>
