@@ -362,18 +362,15 @@ Navigation — grouped:
    📁 1ère Secondaire
       └ Classe A
       └ Classe B
-   📁 2ème Secondaire
-      └ Maths
-      └ Physique
-      └ Sciences
-   📁 3ème Secondaire
-      └ Maths
-      └ Physique
-      └ Sciences
-   📁 Bac
-      └ Maths
-      └ Physique
-      └ Sciences
+    📁 2ème Secondaire
+       └ ECO
+       └ Info+Science
+    📁 3ème Secondaire
+       └ ECO
+       └ Info
+    📁 Bac
+       └ ECO
+       └ Info
 ```
 
 Each class link is a `<button>` or `<a>` with `data-niveau` and `data-classe` attributes. Clicking it calls `navigateTo(niveau, classe)`. Active state: `--accent-bg` background, `--accent` left border 2px, `--text-primary` text.
@@ -572,9 +569,9 @@ const STRUCTURE = [
   { niveau: '8ème Primaire',     classes: ['Classe A', 'Classe B'] },
   { niveau: '9ème Primaire',     classes: ['Classe A', 'Classe B'] },
   { niveau: '1ère Secondaire',   classes: ['Classe A', 'Classe B'] },
-  { niveau: '2ème Secondaire',   classes: ['Maths', 'Physique', 'Sciences'] },
-  { niveau: '3ème Secondaire',   classes: ['Maths', 'Physique', 'Sciences'] },
-  { niveau: 'Bac',               classes: ['Maths', 'Physique', 'Sciences'] },
+  { niveau: '2ème Secondaire',   classes: ['ECO', 'Info+Science'] },
+  { niveau: '3ème Secondaire',   classes: ['ECO', 'Info'] },
+  { niveau: 'Bac',               classes: ['ECO', 'Info'] },
 ];
 
 // Navigation

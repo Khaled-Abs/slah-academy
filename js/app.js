@@ -33,9 +33,9 @@ const STRUCTURE = [
   { niveau: '8ème Primaire',     classes: ['Classe A', 'Classe B'] },
   { niveau: '9ème Primaire',     classes: ['Classe A', 'Classe B'] },
   { niveau: '1ère Secondaire',   classes: ['Classe A', 'Classe B'] },
-  { niveau: '2ème Secondaire',   classes: ['Maths', 'Physique', 'Sciences'] },
-  { niveau: '3ème Secondaire',   classes: ['Maths', 'Physique', 'Sciences'] },
-  { niveau: 'Bac',               classes: ['Maths', 'Physique', 'Sciences'] }
+  { niveau: '2ème Secondaire',   classes: ['ECO', 'Info+Science'] },
+  { niveau: '3ème Secondaire',   classes: ['ECO', 'Info'] },
+  { niveau: 'Bac',               classes: ['ECO', 'Info'] }
 ];
 
 /* ---------- État dans l'URL (#/classe/...) : le rafraîchissement reste sur place ---------- */
