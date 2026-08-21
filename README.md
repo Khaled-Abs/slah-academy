@@ -52,10 +52,10 @@ create table students (
 
 alter table students enable row level security;
 
-create policy "Users can only access their own students"
+create policy "Shared access for authenticated users"
 on students for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+using (auth.role() = 'authenticated')
+with check (auth.role() = 'authenticated');
 ```
 
 **Table `paiements` + RLS :**
@@ -73,15 +73,15 @@ create table paiements (
 
 alter table paiements enable row level security;
 
-create policy "Users can only access their own paiements"
+create policy "Shared access for authenticated users"
 on paiements for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+using (auth.role() = 'authenticated')
+with check (auth.role() = 'authenticated');
 ```
 
 ### 3. Créer le compte enseignant
 
-Dans le tableau de bord Supabase : **Authentication → Users → Add user** et créez le compte email + mot de passe de l'enseignant (un seul compte).
+Dans le tableau de bord Supabase : **Authentication → Users → Add user** et créez le compte email + mot de passe de l'enseignant. Ajoutez autant de comptes que nécessaire : ils partagent tous les mêmes données (élèves et paiements).
 
 ### 4. Configuration locale
 
@@ -140,7 +140,7 @@ Vercel déploie automatiquement à chaque push sur `main` (ou cliquez sur **Depl
 
 ## Sécurité
 
-- **RLS activé** sur les deux tables : chaque utilisateur ne voit que ses propres données, même avec une clé anon fuitée.
+- **RLS activé** sur les deux tables : seuls les comptes authentifiés accèdent aux données (partagées entre comptes), et personne d'autre — même avec une clé anon fuitée.
 - La clé `anon` n'est **jamais** commitée. `config.local.js`, `.env` et `.env.local` sont dans `.gitignore`.
 - Les erreurs Supabase brutes ne sont jamais affichées dans l'interface — elles sont traduites en messages français.
 - En cas de session expirée (réponse 401/403), redirection automatique vers `index.html`.
