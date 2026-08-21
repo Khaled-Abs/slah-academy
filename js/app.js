@@ -38,6 +38,43 @@ const STRUCTURE = [
   { niveau: 'Bac',               classes: ['Maths', 'Physique', 'Sciences'] }
 ];
 
+/* ---------- État dans l'URL (#/classe/...) : le rafraîchissement reste sur place ---------- */
+
+let suppressHashChange = false;
+
+function updateHash(view, niveau, classe) {
+  let target = '#/dashboard';
+  if (view === 'classe' && niveau && classe) {
+    target = '#/classe/' + encodeURIComponent(niveau) + '/' + encodeURIComponent(classe);
+  }
+  if (location.hash === target) return;
+  suppressHashChange = true;
+  location.hash = target;
+  // Si aucun événement hashchange ne se déclenche, réarme le garde-fou
+  setTimeout(() => { suppressHashChange = false; }, 0);
+}
+
+function parseHash() {
+  const raw = location.hash.replace(/^#\/?/, '');
+  if (!raw || raw.startsWith('dashboard')) return { view: 'dashboard' };
+  const parts = raw.split('/').map((p) => {
+    try { return decodeURIComponent(p); } catch (error) { return p; }
+  });
+  if (parts[0] === 'classe' && parts.length >= 3) {
+    const group = STRUCTURE.find((g) => g.niveau === parts[1]);
+    if (group && group.classes.includes(parts[2])) {
+      return { view: 'classe', niveau: parts[1], classe: parts[2] };
+    }
+  }
+  return { view: 'dashboard' };
+}
+
+window.addEventListener('hashchange', () => {
+  if (suppressHashChange) { suppressHashChange = false; return; }
+  const s = parseHash();
+  navigateTo(s.view, s.niveau || null, s.classe || null);
+});
+
 window.addEventListener('unhandledrejection', (e) => {
   console.error('Rejet non géré:', e.reason);
   if (!(e.reason && e.reason.redirecting)) {
@@ -59,6 +96,7 @@ async function navigateTo(view, niveau = null, classe = null, studentId = null) 
   currentNiveau = niveau;
   currentClasse = classe;
   highlightStudentId = studentId;
+  updateHash(view, niveau, classe);
   renderSidebar(niveau, classe);
   const token = showLoadingState();
 
@@ -230,7 +268,9 @@ async function init() {
   setupMobileNav();
   setupSidebarPeek();
 
-  await navigateTo('dashboard');
+  // Restaure la vue depuis l'URL (#/classe/...) — sinon tableau de bord
+  const initial = parseHash();
+  await navigateTo(initial.view, initial.niveau || null, initial.classe || null);
 }
 
 function handleGlobalClick(e) {
