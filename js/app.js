@@ -786,18 +786,33 @@ function setupIconRail() {
     if (monoBtn) {
       const niveau = monoBtn.dataset.railNiveau;
       const group = STRUCTURE.find((g) => g.niveau === niveau);
-      const alreadyInLevel = currentView === 'classe' && currentNiveau === niveau;
-      if (alreadyInLevel && group) {
-        // Déjà dans ce niveau : mini flyout avec les classes du niveau
-        if (railFlyout && railFlyout._niveau === niveau) closeRailFlyout();
-        else openRailFlyout(monoBtn, group);
-      } else if (group && group.classes.length) {
+      const firstClasse = group && group.classes[0];
+      const alreadyThere = currentView === 'classe' && currentNiveau === niveau && currentClasse === firstClasse;
+      if (alreadyThere || !firstClasse) {
+        // Déjà dans la première classe : le clic sert juste à refermer le flyout
         closeRailFlyout();
-        // Atterrissage direct dans la première classe du niveau
-        navigateTo('classe', niveau, group.classes[0]);
+      } else {
+        navigateTo('classe', niveau, firstClasse);
       }
       return;
     }
+  });
+
+  // Survol (ou focus clavier) d'un monogramme : flyout des classes,
+  // remplacé dès que l'on pointe un autre niveau, sinon il reste affiché
+  const showFlyoutFor = (monoBtn) => {
+    const group = STRUCTURE.find((g) => g.niveau === monoBtn.dataset.railNiveau);
+    if (!group || !group.classes.length) return;
+    if (railFlyout && railFlyout._niveau === group.niveau) return;
+    openRailFlyout(monoBtn, group);
+  };
+  rail.addEventListener('mouseover', (e) => {
+    const monoBtn = e.target.closest('[data-rail-niveau]');
+    if (monoBtn) showFlyoutFor(monoBtn);
+  });
+  rail.addEventListener('focusin', (e) => {
+    const monoBtn = e.target.closest('[data-rail-niveau]');
+    if (monoBtn) showFlyoutFor(monoBtn);
   });
 
   // Clic en dehors : referme flyout et panneau flottant
