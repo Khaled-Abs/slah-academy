@@ -808,9 +808,8 @@ function setupExpandHint() {
       document.documentElement.classList.contains('nav-open')
     ) return;
     expandHint.classList.add('show-flicker');
-      setTimeout(() => expandHint.classList.remove('show-flicker'), 1700);
-    }, 6000);
-  }
+    setTimeout(() => expandHint.classList.remove('show-flicker'), 1700);
+  }, 6000);
 }
 
 function setupIconRail() {
