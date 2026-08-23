@@ -381,7 +381,7 @@ async function init() {
   setupYearPicker();
   setupMobileNav();
   setupIconRail();
-  setupRailHints();
+  setupExpandHint();
 
   // Restaure la vue depuis l'URL (#/classe/...) — sinon tableau de bord
   const initial = parseHash();
@@ -750,7 +750,6 @@ function openRailFlyout(btn, group) {
     item.className = 'rail-flyout-item' + (currentView === 'classe' && currentNiveau === group.niveau && currentClasse === classe ? ' active' : '');
     item.textContent = classe;
     item.addEventListener('click', () => {
-      markRailUsed();
       navigateTo('classe', group.niveau, classe);
       closeRailFlyout();
     });
@@ -787,102 +786,30 @@ function setNavPinned(value) {
   applyNavPin();
   if (!navPinned) {
     document.documentElement.classList.remove('nav-open');
-    maybeShowCoachMark();
   }
 }
 
-/* ---------- Découverte du rail : coach mark + pulsation ---------- */
+/* ---------- Indice d'expansion » : clignote toutes les 10 s ---------- */
 
-function railUsed() {
-  try { return localStorage.getItem('slah_rail_used') === '1'; } catch (error) { return false; }
-}
-
-function markRailUsed() {
-  try { localStorage.setItem('slah_rail_used', '1'); } catch (error) { /* ignore */ }
-  const rail = document.getElementById('iconRail');
-  if (rail) rail.classList.remove('rail-hint');
-}
-
-function dismissCoachMark() {
-  const el = document.getElementById('railCoach');
-  if (el) el.remove();
-  try { localStorage.setItem('slah_coach_seen', '1'); } catch (error) { /* ignore */ }
-}
-
-function showCoachMark() {
-  if (document.getElementById('railCoach')) return;
-  if (navPinned || document.documentElement.classList.contains('nav-open')) return;
-
-  const el = document.createElement('div');
-  el.className = 'rail-coach';
-  el.id = 'railCoach';
-  el.innerHTML = `
-    <div class="coach-title">💡 Navigation rapide</div>
-    <ul>
-      <li>Survolez un niveau → ses classes</li>
-      <li>Cliquez-le → atterrissez dans la première</li>
-      <li>❮ ou Ctrl+B → épingler le menu</li>
-    </ul>
-    <button type="button" class="coach-close">Compris</button>`;
-  document.body.appendChild(el);
-  el.querySelector('.coach-close').addEventListener('click', dismissCoachMark);
-  setTimeout(dismissCoachMark, 20000);
-}
-
-function maybeShowCoachMark() {
-  let seen = false;
-  try { seen = localStorage.getItem('slah_coach_seen') === '1'; } catch (error) { /* ignore */ }
-  if (seen || railUsed()) return;
-  setTimeout(showCoachMark, 600);
-}
-
-function setupRailHints() {
-  const rail = document.getElementById('iconRail');
-  if (!rail) return;
-
-  // Premier usage réel du rail → plus jamais de pulsation
-  rail.addEventListener('click', markRailUsed);
-
-  // Coach mark une seule fois, en mode fermé uniquement
-  let seen = false;
-  try { seen = localStorage.getItem('slah_coach_seen') === '1'; } catch (error) { /* ignore */ }
-  if (!seen && !railUsed() && !navPinned) {
-    setTimeout(showCoachMark, 900);
-  }
-
-  // Pulsation d'appel tant que le rail n'a jamais servi
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!reduced) {
-    const pulse = () => {
-      if (railUsed() || navPinned || document.documentElement.classList.contains('nav-open')) return;
-      rail.classList.remove('rail-hint');
-      void rail.offsetWidth;
-      rail.classList.add('rail-hint');
-      setTimeout(() => rail.classList.remove('rail-hint'), 3400);
-    };
-    setTimeout(pulse, 30000);
-    setInterval(pulse, 120000);
-  }
-
-  // Double flèche « : clignote toutes les 10 s tant que le menu n'a pas été ouvert
+function setupExpandHint() {
   const expandHint = document.getElementById('railExpandHint');
-  if (expandHint) {
-    expandHint.addEventListener('click', () => {
-      expandedOnceSession = true;
-      expandHint.classList.remove('show-flicker');
-      document.documentElement.classList.add('nav-open');
-    });
-    setInterval(() => {
-      if (
-        expandedOnceSession ||
-        navPinned ||
-        document.documentElement.classList.contains('nav-open') ||
-        document.getElementById('railCoach')
-      ) return;
-      expandHint.classList.add('show-flicker');
-      setTimeout(() => expandHint.classList.remove('show-flicker'), 1700);
-    }, 10000);
-  }
+  if (!expandHint) return;
+
+  expandHint.addEventListener('click', () => {
+    expandedOnceSession = true;
+    expandHint.classList.remove('show-flicker');
+    document.documentElement.classList.add('nav-open');
+  });
+
+  setInterval(() => {
+    if (
+      expandedOnceSession ||
+      navPinned ||
+      document.documentElement.classList.contains('nav-open')
+    ) return;
+    expandHint.classList.add('show-flicker');
+    setTimeout(() => expandHint.classList.remove('show-flicker'), 1700);
+  }, 10000);
 }
 
 function setupIconRail() {
