@@ -78,13 +78,15 @@ window.addEventListener('hashchange', () => {
 window.addEventListener('unhandledrejection', (e) => {
   console.error('Rejet non géré:', e.reason);
   if (!(e.reason && e.reason.redirecting)) {
-    showToast('Erreur inattendue. Réessayez.', 'error');
+    const detail = String((e.reason && (e.reason.message || e.reason)) || '').slice(0, 140);
+    showToast('Erreur inattendue. Réessayez.' + (detail ? ' [' + detail + ']' : ''), 'error');
   }
 });
 
 window.addEventListener('error', (e) => {
   console.error('Erreur JavaScript:', e.error || e.message);
-  showToast('Erreur inattendue. Réessayez.', 'error');
+  const detail = String((e.error && e.error.message) || e.message || '').slice(0, 140);
+  showToast('Erreur inattendue. Réessayez.' + (detail ? ' [' + detail + ']' : ''), 'error');
 });
 
 function isAuthRedirect(error) {
