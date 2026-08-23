@@ -443,7 +443,7 @@ a {
     transition: margin-left 0.22s var(--ease-out);
   }
 
-  body:not(.nav-pinned) .main {
+  html:not(.nav-pinned) .main {
     margin-left: calc(12px + var(--rail-w) + 16px);
   }
 
