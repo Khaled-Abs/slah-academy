@@ -1222,8 +1222,9 @@ tr:hover .drag-handle {
     transition: transform 0.22s ease;
   }
 
-  html.nav-open .sidebar {
-    box-shadow: 24px 0 60px rgba(0, 0, 0, 0.45);
+  /* Panneau ouvert : pousse le contenu au lieu de le recouvrir */
+  html.nav-open .main {
+    margin-left: calc(var(--rail-w, 64px) + 240px);
   }
 
   .icon-rail {
