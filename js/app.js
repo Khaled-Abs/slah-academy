@@ -356,7 +356,7 @@ async function init() {
         navigateTo('classe', btn.dataset.niveau, btn.dataset.classe);
       }
       // Panneau flottant : se referme après navigation
-      if (!navPinned) document.body.classList.remove('nav-open');
+      if (!navPinned) document.documentElement.classList.remove('nav-open');
     });
   }
 
@@ -704,14 +704,16 @@ function setupMobileNav() {
 let navPinned = true;
 
 function applyNavPin() {
-  document.body.classList.toggle('nav-pinned', navPinned);
+  document.documentElement.classList.toggle('nav-pinned', navPinned);
+  const pinBtn = document.getElementById('navPinBtn');
+  if (pinBtn) pinBtn.setAttribute('aria-pressed', String(navPinned));
   try { localStorage.setItem('slah_nav_pinned', navPinned ? '1' : '0'); } catch (error) { /* ignore */ }
 }
 
 function setNavPinned(value) {
   navPinned = !!value;
   applyNavPin();
-  if (!navPinned) document.body.classList.remove('nav-open');
+  if (!navPinned) document.documentElement.classList.remove('nav-open');
 }
 
 function setupIconRail() {
@@ -736,23 +738,29 @@ function setupIconRail() {
       return;
     }
     if (e.target.closest('[data-rail-view]')) {
-      document.body.classList.add('nav-open');
-      navigateTo('dashboard');
+      document.documentElement.classList.add('nav-open');
+      // Déjà sur le tableau de bord : inutile de recharger
+      if (currentView !== 'dashboard') navigateTo('dashboard');
       return;
     }
     if (e.target.closest('[data-rail-niveau]')) {
-      document.body.classList.add('nav-open');
+      document.documentElement.classList.add('nav-open');
     }
   });
 
-  let hoverTimer = null;
+  let closeTimer = null;
 
   // Clic en dehors du panneau (mode détaché) → le refermer
   document.addEventListener('click', (e) => {
-    if (navPinned || !document.body.classList.contains('nav-open')) return;
+    if (navPinned || !document.documentElement.classList.contains('nav-open')) return;
     if (e.target.closest('.sidebar') || e.target.closest('.icon-rail')) return;
-    clearTimeout(hoverTimer);
-    document.body.classList.remove('nav-open');
+    clearTimeout(closeTimer);
+    document.documentElement.classList.remove('nav-open');
+  });
+
+  // Changement de breakpoint : referme le panneau flottant proprement
+  window.matchMedia('(max-width: 900px)').addEventListener('change', () => {
+    document.documentElement.classList.remove('nav-open');
   });
 
   document.addEventListener('keydown', (e) => {
@@ -760,7 +768,7 @@ function setupIconRail() {
       e.preventDefault();
       setNavPinned(!navPinned);
     } else if (e.key === 'Escape' && !navPinned) {
-      document.body.classList.remove('nav-open');
+      document.documentElement.classList.remove('nav-open');
     }
   });
 }
