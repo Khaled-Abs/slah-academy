@@ -1407,6 +1407,9 @@ tr:hover .drag-handle {
   html:not(.nav-pinned) .rail-expand-hint:hover {
     color: var(--accent);
     border-color: var(--accent);
+    /* Attrapé : le clignotement s'arrête, la flèche reste allumée en bleu */
+    animation: none;
+    opacity: 1;
   }
 
   @keyframes hint-flicker {

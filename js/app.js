@@ -801,12 +801,13 @@ function setupExpandHint() {
     document.documentElement.classList.add('nav-open');
   });
 
-  setInterval(() => {
-    if (
-      expandedOnceSession ||
-      navPinned ||
-      document.documentElement.classList.contains('nav-open')
-    ) return;
+    setInterval(() => {
+      if (
+        expandedOnceSession ||
+        navPinned ||
+        document.documentElement.classList.contains('nav-open') ||
+        expandHint.matches(':hover')
+      ) return;
     expandHint.classList.add('show-flicker');
     setTimeout(() => expandHint.classList.remove('show-flicker'), 1700);
   }, 6000);
