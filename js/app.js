@@ -789,7 +789,7 @@ function setNavPinned(value) {
   }
 }
 
-/* ---------- Indice d'expansion » : clignote toutes les 10 s ---------- */
+/* ---------- Indice d'expansion » : clignote toutes les 6 s ---------- */
 
 function setupExpandHint() {
   const expandHint = document.getElementById('railExpandHint');
@@ -808,8 +808,9 @@ function setupExpandHint() {
       document.documentElement.classList.contains('nav-open')
     ) return;
     expandHint.classList.add('show-flicker');
-    setTimeout(() => expandHint.classList.remove('show-flicker'), 1700);
-  }, 10000);
+      setTimeout(() => expandHint.classList.remove('show-flicker'), 1700);
+    }, 6000);
+  }
 }
 
 function setupIconRail() {
