@@ -1779,6 +1779,7 @@ tr:hover .col-actions .drag-handle {
   }
 
   .sidebar {
+    position: fixed;
     transform: translateX(-105%);
     visibility: hidden;
     transition: transform 0.22s var(--ease-out), visibility 0s linear 0.22s;
