@@ -742,6 +742,7 @@ a {
 .side-nav {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 12px 10px;
 }
 
@@ -1780,6 +1781,8 @@ tr:hover .col-actions .drag-handle {
 
   .sidebar {
     position: fixed;
+    display: flex;
+    flex-direction: column;
     transform: translateX(-105%);
     visibility: hidden;
     transition: transform 0.22s var(--ease-out), visibility 0s linear 0.22s;
