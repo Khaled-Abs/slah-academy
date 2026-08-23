@@ -704,8 +704,25 @@ function setupMobileNav() {
 
 let navPinned = true;
 let railFlyout = null;
+let flyoutFadeTimer = null;
+const FLYOUT_IDLE_MS = 4000; // disparaît 4 s après que la souris l'a quitté sans clic
+
+function clearFlyoutFade() {
+  clearTimeout(flyoutFadeTimer);
+  flyoutFadeTimer = null;
+}
+
+function scheduleFlyoutFade() {
+  clearFlyoutFade();
+  flyoutFadeTimer = setTimeout(() => {
+    if (!railFlyout) return;
+    railFlyout.classList.add('fading');
+    setTimeout(() => closeRailFlyout(), 280);
+  }, FLYOUT_IDLE_MS);
+}
 
 function closeRailFlyout() {
+  clearFlyoutFade();
   if (railFlyout) {
     railFlyout.remove();
     railFlyout = null;
@@ -740,6 +757,13 @@ function openRailFlyout(btn, group) {
   const top = Math.max(12, Math.min(rect.top, window.innerHeight - railFlyout.offsetHeight - 12));
   railFlyout.style.top = top + 'px';
   railFlyout.style.left = (rect.right + 10) + 'px';
+
+  // Le compte à rebours ne tourne que quand le pointeur a quitté flyout + icône
+  railFlyout.addEventListener('mouseenter', clearFlyoutFade);
+  railFlyout.addEventListener('mouseleave', scheduleFlyoutFade);
+  btn.addEventListener('mouseenter', clearFlyoutFade);
+  btn.addEventListener('mouseleave', scheduleFlyoutFade);
+  scheduleFlyoutFade();
 }
 
 function applyNavPin() {
