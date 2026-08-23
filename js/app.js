@@ -769,7 +769,15 @@ function setupIconRail() {
   navPinned = stored !== '0';
   applyNavPin();
 
-  pinBtn.addEventListener('click', () => setNavPinned(!navPinned));
+  pinBtn.addEventListener('click', () => {
+    // Panneau flottant ouvert : la flèche le referme directement
+    if (!navPinned && document.documentElement.classList.contains('nav-open')) {
+      document.documentElement.classList.remove('nav-open');
+      return;
+    }
+    // Panneau épinglé : la flèche le détache et le replie
+    setNavPinned(!navPinned);
+  });
 
   rail.addEventListener('click', (e) => {
     if (e.target.closest('[data-rail-logout]')) {
