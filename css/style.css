@@ -1363,6 +1363,52 @@ tr:hover .drag-handle {
   position: relative;
 }
 
+/* ---------- Mini flyout classes (rail) ---------- */
+.rail-flyout {
+  position: fixed;
+  z-index: 120;
+  min-width: 170px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.rail-flyout-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+  padding: 6px 10px 4px;
+}
+
+.rail-flyout-item {
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.rail-flyout-item:hover {
+  background: var(--accent-bg);
+  color: var(--text-primary);
+}
+
+.rail-flyout-item.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* ---------- Rapport classe ---------- */
 .report-wrap {
   position: relative;

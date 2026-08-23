@@ -92,6 +92,7 @@ function isAuthRedirect(error) {
 }
 
 async function navigateTo(view, niveau = null, classe = null, studentId = null) {
+  closeRailFlyout();
   currentView = view;
   currentNiveau = niveau;
   currentClasse = classe;
@@ -702,6 +703,44 @@ function setupMobileNav() {
 /* ---------- Rail d'icônes + panneau épinglable ---------- */
 
 let navPinned = true;
+let railFlyout = null;
+
+function closeRailFlyout() {
+  if (railFlyout) {
+    railFlyout.remove();
+    railFlyout = null;
+  }
+}
+
+function openRailFlyout(btn, group) {
+  closeRailFlyout();
+  railFlyout = document.createElement('div');
+  railFlyout.className = 'rail-flyout';
+  railFlyout._niveau = group.niveau;
+
+  const title = document.createElement('div');
+  title.className = 'rail-flyout-title';
+  title.textContent = group.niveau;
+  railFlyout.appendChild(title);
+
+  group.classes.forEach((classe) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'rail-flyout-item' + (currentView === 'classe' && currentNiveau === group.niveau && currentClasse === classe ? ' active' : '');
+    item.textContent = classe;
+    item.addEventListener('click', () => {
+      navigateTo('classe', group.niveau, classe);
+      closeRailFlyout();
+    });
+    railFlyout.appendChild(item);
+  });
+
+  document.body.appendChild(railFlyout);
+  const rect = btn.getBoundingClientRect();
+  const top = Math.max(12, Math.min(rect.top, window.innerHeight - railFlyout.offsetHeight - 12));
+  railFlyout.style.top = top + 'px';
+  railFlyout.style.left = (rect.right + 10) + 'px';
+}
 
 function applyNavPin() {
   document.documentElement.classList.toggle('nav-pinned', navPinned);
@@ -746,42 +785,46 @@ function setupIconRail() {
     const monoBtn = e.target.closest('[data-rail-niveau]');
     if (monoBtn) {
       const niveau = monoBtn.dataset.railNiveau;
+      const group = STRUCTURE.find((g) => g.niveau === niveau);
       const alreadyInLevel = currentView === 'classe' && currentNiveau === niveau;
-      if (alreadyInLevel) {
-        // Déjà dans ce niveau : ouvre le panneau pour choisir la classe
-        document.documentElement.classList.add('nav-open');
-      } else {
+      if (alreadyInLevel && group) {
+        // Déjà dans ce niveau : mini flyout avec les classes du niveau
+        if (railFlyout && railFlyout._niveau === niveau) closeRailFlyout();
+        else openRailFlyout(monoBtn, group);
+      } else if (group && group.classes.length) {
+        closeRailFlyout();
         // Atterrissage direct dans la première classe du niveau
-        const group = STRUCTURE.find((g) => g.niveau === niveau);
-        if (group && group.classes.length) {
-          navigateTo('classe', niveau, group.classes[0]);
-        }
+        navigateTo('classe', niveau, group.classes[0]);
       }
       return;
     }
   });
 
-  let closeTimer = null;
-
-  // Clic en dehors du panneau (mode détaché) → le refermer
+  // Clic en dehors : referme flyout et panneau flottant
   document.addEventListener('click', (e) => {
-    if (navPinned || !document.documentElement.classList.contains('nav-open')) return;
-    if (e.target.closest('.sidebar') || e.target.closest('.icon-rail')) return;
-    clearTimeout(closeTimer);
-    document.documentElement.classList.remove('nav-open');
+    if (railFlyout && !e.target.closest('.rail-flyout') && !e.target.closest('[data-rail-niveau]')) {
+      closeRailFlyout();
+    }
+    if (!navPinned && document.documentElement.classList.contains('nav-open')) {
+      if (!e.target.closest('.sidebar') && !e.target.closest('.icon-rail')) {
+        document.documentElement.classList.remove('nav-open');
+      }
+    }
   });
 
-  // Changement de breakpoint : referme le panneau flottant proprement
+  // Changement de breakpoint : referme panneau flottant et flyout proprement
   window.matchMedia('(max-width: 900px)').addEventListener('change', () => {
     document.documentElement.classList.remove('nav-open');
+    closeRailFlyout();
   });
 
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 'b') {
       e.preventDefault();
       setNavPinned(!navPinned);
-    } else if (e.key === 'Escape' && !navPinned) {
-      document.documentElement.classList.remove('nav-open');
+    } else if (e.key === 'Escape') {
+      if (railFlyout) { closeRailFlyout(); return; }
+      if (!navPinned) document.documentElement.classList.remove('nav-open');
     }
   });
 }
