@@ -745,7 +745,10 @@ function openRailFlyout(btn, group) {
 function applyNavPin() {
   document.documentElement.classList.toggle('nav-pinned', navPinned);
   const pinBtn = document.getElementById('navPinBtn');
-  if (pinBtn) pinBtn.setAttribute('aria-pressed', String(navPinned));
+  if (pinBtn) {
+    pinBtn.setAttribute('aria-pressed', String(navPinned));
+    pinBtn.title = navPinned ? 'Détacher et replier le menu (Ctrl+B)' : 'Fermer le menu';
+  }
   try { localStorage.setItem('slah_nav_pinned', navPinned ? '1' : '0'); } catch (error) { /* ignore */ }
 }
 
