@@ -888,7 +888,12 @@ function setupIconRail() {
       closeRailFlyout();
     }
     if (!navPinned && document.documentElement.classList.contains('nav-open')) {
-      if (!e.target.closest('.sidebar') && !e.target.closest('.icon-rail')) {
+      // Le bouton » vient d'ouvrir le panneau : ne pas le refermer sur ce même clic
+      if (
+        !e.target.closest('.sidebar') &&
+        !e.target.closest('.icon-rail') &&
+        !e.target.closest('.rail-expand-hint')
+      ) {
         document.documentElement.classList.remove('nav-open');
       }
     }
