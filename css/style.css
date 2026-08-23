@@ -1373,9 +1373,46 @@ tr:hover .drag-handle {
   }
 }
 
-.sidebar-top {
-  position: relative;
-}
+  .rail-expand-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  html:not(.nav-pinned) .rail-expand-hint {
+    position: fixed;
+    left: calc(var(--rail-w, 64px) - 11px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 78;
+    width: 22px;
+    height: 38px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-right-color: transparent;
+    border-radius: 8px 0 0 8px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: 15px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .rail-expand-hint.show-flicker {
+    animation: hint-flicker 1.6s ease forwards;
+  }
+
+  @keyframes hint-flicker {
+    0%, 100% { opacity: 0; }
+    15%, 35%, 55%, 75% { opacity: 1; }
+    25%, 45%, 65% { opacity: 0.2; }
+    85%, 95% { opacity: 1; }
+  }
+
+  .sidebar-top {
+    position: relative;
+  }
 
 /* ---------- Mini flyout classes (rail) ---------- */
 .rail-flyout {
@@ -1531,7 +1568,8 @@ tr:hover .drag-handle {
   .main,
   .nav-pin-btn,
   .rail-flyout,
-  .rail-coach {
+  .rail-coach,
+  .rail-expand-hint {
     transition: none !important;
     animation: none !important;
   }
@@ -1539,6 +1577,10 @@ tr:hover .drag-handle {
   .icon-rail.rail-hint .rail-item {
     animation: none !important;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  }
+
+  .rail-expand-hint.show-flicker {
+    opacity: 1;
   }
 }
 

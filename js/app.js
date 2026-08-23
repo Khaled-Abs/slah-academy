@@ -705,6 +705,7 @@ function setupMobileNav() {
 
 let navPinned = true;
 let railFlyout = null;
+let expandedOnceSession = false;
 let flyoutFadeTimer = null;
 const FLYOUT_IDLE_MS = 4000; // disparaît 4 s après que la souris l'a quitté sans clic
 
@@ -780,6 +781,7 @@ function applyNavPin() {
 
 function setNavPinned(value) {
   navPinned = !!value;
+  if (navPinned) expandedOnceSession = true;
   applyNavPin();
   if (!navPinned) {
     document.documentElement.classList.remove('nav-open');
@@ -859,6 +861,27 @@ function setupRailHints() {
     setTimeout(pulse, 30000);
     setInterval(pulse, 120000);
   }
+
+  // Double flèche « : clignote toutes les 10 s tant que le menu n'a pas été ouvert
+  const expandHint = document.getElementById('railExpandHint');
+  if (expandHint) {
+    expandHint.addEventListener('click', () => {
+      expandedOnceSession = true;
+      expandHint.classList.remove('show-flicker');
+      document.documentElement.classList.add('nav-open');
+    });
+    setInterval(() => {
+      if (
+        expandedOnceSession ||
+        navPinned ||
+        document.documentElement.classList.contains('nav-open') ||
+        !expandedHint ||
+        document.getElementById('railCoach')
+      ) return;
+      expandHint.classList.add('show-flicker');
+      setTimeout(() => expandHint.classList.remove('show-flicker'), 1700);
+    }, 10000);
+  }
 }
 
 function setupIconRail() {
@@ -892,6 +915,7 @@ function setupIconRail() {
     }
     if (e.target.closest('[data-rail-view]')) {
       document.documentElement.classList.add('nav-open');
+      expandedOnceSession = true;
       // Déjà sur le tableau de bord : inutile de recharger
       if (currentView !== 'dashboard') navigateTo('dashboard');
       return;
