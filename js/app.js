@@ -98,6 +98,7 @@ async function navigateTo(view, niveau = null, classe = null, studentId = null) 
   highlightStudentId = studentId;
   updateHash(view, niveau, classe);
   renderSidebar(niveau, classe);
+  renderIconRail(niveau);
   const token = showLoadingState();
 
   try {
@@ -374,7 +375,7 @@ async function init() {
   setupDragAndDrop();
   setupYearPicker();
   setupMobileNav();
-  setupSidebarPeek();
+  setupIconRail();
 
   // Restaure la vue depuis l'URL (#/classe/...) — sinon tableau de bord
   const initial = parseHash();
@@ -696,32 +697,79 @@ function setupMobileNav() {
   backdrop.addEventListener('click', closeDrawer);
 }
 
-/* ---------- Sidebar peek (desktop) ---------- */
+/* ---------- Rail d'icônes + panneau épinglable ---------- */
 
-function applySidebarHidden(hidden) {
-  document.documentElement.classList.toggle('sb-hidden', hidden);
-  try { localStorage.setItem('slah_sidebar', hidden ? 'hidden' : 'open'); } catch (error) { /* ignore */ }
+let navPinned = true;
+
+function applyNavPin() {
+  document.body.classList.toggle('nav-pinned', navPinned);
+  try { localStorage.setItem('slah_nav_pinned', navPinned ? '1' : '0'); } catch (error) { /* ignore */ }
 }
 
-function setupSidebarPeek() {
-  const handle = document.getElementById('sidebarHandle');
+function setNavPinned(value) {
+  navPinned = !!value;
+  applyNavPin();
+  if (!navPinned) document.body.classList.remove('nav-open');
+}
+
+function setupIconRail() {
+  const rail = document.getElementById('iconRail');
   const sidebar = document.querySelector('.sidebar');
-  if (!handle || !sidebar) return;
+  const pinBtn = document.getElementById('navPinBtn');
+  if (!rail || !sidebar || !pinBtn) return;
 
-  let hidden = false;
-  try { hidden = localStorage.getItem('slah_sidebar') === 'hidden'; } catch (error) { /* ignore */ }
-  if (hidden) document.documentElement.classList.add('sb-hidden');
+  let stored = null;
+  try {
+    localStorage.removeItem('slah_sidebar'); // ancien système peek
+    stored = localStorage.getItem('slah_nav_pinned');
+  } catch (error) { /* ignore */ }
+  navPinned = stored !== '0';
+  applyNavPin();
 
-  handle.addEventListener('click', () => {
-    hidden = !document.documentElement.classList.contains('sb-hidden');
-    applySidebarHidden(hidden);
+  pinBtn.addEventListener('click', () => setNavPinned(!navPinned));
+
+  rail.addEventListener('click', (e) => {
+    if (e.target.closest('[data-rail-logout]')) {
+      logout().then(() => { window.location.href = 'index.html'; });
+      return;
+    }
+    if (e.target.closest('[data-rail-view]')) {
+      document.body.classList.add('nav-open');
+      navigateTo('dashboard');
+      return;
+    }
+    if (e.target.closest('[data-rail-niveau]')) {
+      document.body.classList.add('nav-open');
+    }
   });
 
-  // Clic en dehors de la barre → la replier
-  document.addEventListener('click', (e) => {
-    if (document.documentElement.classList.contains('sb-hidden')) return;
-    if (e.target.closest('.sidebar')) return;
-    applySidebarHidden(true);
+  let hoverTimer = null;
+  const openSoon = () => {
+    if (navPinned) return;
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => document.body.classList.add('nav-open'), 150);
+  };
+  const closeSoon = () => {
+    if (navPinned) return;
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => document.body.classList.remove('nav-open'), 300);
+  };
+
+  // Le survol ne s'applique qu'aux pointeurs précis (souris/trackpad)
+  if (window.matchMedia('(pointer: fine)').matches) {
+    [rail, sidebar].forEach((el) => {
+      el.addEventListener('mouseenter', openSoon);
+      el.addEventListener('mouseleave', closeSoon);
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 'b') {
+      e.preventDefault();
+      setNavPinned(!navPinned);
+    } else if (e.key === 'Escape' && !navPinned) {
+      document.body.classList.remove('nav-open');
+    }
   });
 }
 

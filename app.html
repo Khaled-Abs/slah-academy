@@ -5,7 +5,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SLAH Academy — Suivi des paiements</title>
-  <script>try{if(localStorage.getItem('slah_sidebar')==='hidden')document.documentElement.classList.add('sb-hidden')}catch(e){}</script>
   <meta name="description" content="SLAH Academy — suivi des paiements mensuels des élèves.">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,6 +29,15 @@
   <div id="drawerBackdrop" class="drawer-backdrop" hidden></div>
 
   <div class="app-shell">
+    <nav class="icon-rail" id="iconRail" aria-label="Navigation rapide">
+      <div class="rail-logo" title="SLAH Academy">S</div>
+      <button type="button" class="rail-item" data-rail-view="dashboard" data-tip="Tableau de bord">🏠</button>
+      <div class="rail-sep"></div>
+      <div class="rail-levels" id="railLevels"></div>
+      <div class="rail-spacer"></div>
+      <button type="button" class="rail-item" data-rail-logout data-tip="Se déconnecter">⎋</button>
+    </nav>
+
     <aside class="sidebar">
       <div class="sidebar-top">
         <div class="sidebar-logo">SLAH Academy</div>
@@ -37,6 +45,7 @@
           <button type="button" class="annee-badge" id="anneeBadge" title="Changer d'année scolaire">2026–2027</button>
           <div class="year-menu" id="anneeMenu" hidden></div>
         </span>
+        <button type="button" id="navPinBtn" class="nav-pin-btn" title="Épingler / détacher le menu (Ctrl+B)">❮</button>
       </div>
 
       <nav class="side-nav" id="sideNav"></nav>
@@ -45,8 +54,6 @@
         <div class="user-email" id="userEmail"></div>
         <button class="btn-logout" id="logoutBtn">Se déconnecter</button>
       </div>
-
-      <button type="button" id="sidebarHandle" class="sidebar-handle" title="Afficher / masquer le menu" aria-label="Afficher ou masquer le menu"><span class="handle-chevron">❯</span></button>
     </aside>
 
     <main class="main" id="mainContent"></main>

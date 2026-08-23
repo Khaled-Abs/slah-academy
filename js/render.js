@@ -26,6 +26,27 @@ function renderSidebar(activeNiveau, activeClasse) {
   nav.innerHTML = html;
 }
 
+const RAIL_MONOS = {
+  '7ème Primaire': '7P',
+  '8ème Primaire': '8P',
+  '9ème Primaire': '9P',
+  '1ère Secondaire': '1S',
+  '2ème Secondaire': '2S',
+  '3ème Secondaire': '3S',
+  'Bac': 'BAC'
+};
+
+function renderIconRail(activeNiveau) {
+  const holder = document.getElementById('railLevels');
+  if (!holder) return;
+  const dashBtn = document.querySelector('.icon-rail [data-rail-view]');
+  if (dashBtn) dashBtn.classList.toggle('active', activeNiveau == null);
+  holder.innerHTML = STRUCTURE.map((group) => {
+    const active = activeNiveau === group.niveau;
+    return `<button type="button" class="rail-item rail-mono${active ? ' active' : ''}" data-rail-niveau="${esc(group.niveau)}" data-tip="${esc(group.niveau)}">${RAIL_MONOS[group.niveau] || '•'}</button>`;
+  }).join('');
+}
+
 function renderEmptyState(container, message, isSuccess = false) {
   container.innerHTML = `<div class="empty-state${isSuccess ? ' success' : ''}">${esc(message)}</div>`;
 }
