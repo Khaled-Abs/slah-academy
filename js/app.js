@@ -825,7 +825,14 @@ function setupIconRail() {
   navPinned = stored !== '0';
   applyNavPin();
 
+  const isMobileViewport = () => window.matchMedia('(max-width: 900px)').matches;
+
   pinBtn.addEventListener('click', () => {
+    // Mobile : la flèche referme le tiroir
+    if (isMobileViewport()) {
+      closeDrawer();
+      return;
+    }
     // Panneau flottant ouvert : la flèche le referme directement
     if (!navPinned && document.documentElement.classList.contains('nav-open')) {
       document.documentElement.classList.remove('nav-open');
