@@ -743,8 +743,21 @@ function setupIconRail() {
       if (currentView !== 'dashboard') navigateTo('dashboard');
       return;
     }
-    if (e.target.closest('[data-rail-niveau]')) {
-      document.documentElement.classList.add('nav-open');
+    const monoBtn = e.target.closest('[data-rail-niveau]');
+    if (monoBtn) {
+      const niveau = monoBtn.dataset.railNiveau;
+      const alreadyInLevel = currentView === 'classe' && currentNiveau === niveau;
+      if (alreadyInLevel) {
+        // Déjà dans ce niveau : ouvre le panneau pour choisir la classe
+        document.documentElement.classList.add('nav-open');
+      } else {
+        // Atterrissage direct dans la première classe du niveau
+        const group = STRUCTURE.find((g) => g.niveau === niveau);
+        if (group && group.classes.length) {
+          navigateTo('classe', niveau, group.classes[0]);
+        }
+      }
+      return;
     }
   });
 
