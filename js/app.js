@@ -355,6 +355,8 @@ async function init() {
       } else if (btn.dataset.niveau) {
         navigateTo('classe', btn.dataset.niveau, btn.dataset.classe);
       }
+      // Panneau flottant : se referme après navigation
+      if (!navPinned) document.body.classList.remove('nav-open');
     });
   }
 
@@ -744,24 +746,14 @@ function setupIconRail() {
   });
 
   let hoverTimer = null;
-  const openSoon = () => {
-    if (navPinned) return;
-    clearTimeout(hoverTimer);
-    hoverTimer = setTimeout(() => document.body.classList.add('nav-open'), 150);
-  };
-  const closeSoon = () => {
-    if (navPinned) return;
-    clearTimeout(hoverTimer);
-    hoverTimer = setTimeout(() => document.body.classList.remove('nav-open'), 300);
-  };
 
-  // Le survol ne s'applique qu'aux pointeurs précis (souris/trackpad)
-  if (window.matchMedia('(pointer: fine)').matches) {
-    [rail, sidebar].forEach((el) => {
-      el.addEventListener('mouseenter', openSoon);
-      el.addEventListener('mouseleave', closeSoon);
-    });
-  }
+  // Clic en dehors du panneau (mode détaché) → le refermer
+  document.addEventListener('click', (e) => {
+    if (navPinned || !document.body.classList.contains('nav-open')) return;
+    if (e.target.closest('.sidebar') || e.target.closest('.icon-rail')) return;
+    clearTimeout(hoverTimer);
+    document.body.classList.remove('nav-open');
+  });
 
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 'b') {
