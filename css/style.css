@@ -101,6 +101,11 @@ a {
   display: none !important;
 }
 
+/* Le hamburger n'existe qu'en mobile — jamais sur desktop */
+.nav-toggle {
+  display: none;
+}
+
 .mono,
 [class*="tabular"] {
   font-variant-numeric: tabular-nums;
