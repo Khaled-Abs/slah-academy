@@ -43,7 +43,7 @@ function renderIconRail(activeNiveau) {
   if (dashBtn) dashBtn.classList.toggle('active', activeNiveau == null);
   holder.innerHTML = STRUCTURE.map((group) => {
     const active = activeNiveau === group.niveau;
-    return `<button type="button" class="rail-item rail-mono${active ? ' active' : ''}" data-rail-niveau="${esc(group.niveau)}" data-tip="${esc(group.niveau)}">${RAIL_MONOS[group.niveau] || '•'}</button>`;
+    return `<button type="button" class="rail-item rail-mono${active ? ' active' : ''}" data-rail-niveau="${esc(group.niveau)}" data-tip="${esc(group.niveau)}">${RAIL_MONOS[group.niveau] || '•'}<span class="rail-more">›</span></button>`;
   }).join('');
 }
 

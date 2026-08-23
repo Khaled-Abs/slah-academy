@@ -1305,6 +1305,36 @@ tr:hover .drag-handle {
     font-weight: 600;
   }
 
+  .rail-more {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    font-family: var(--font-body);
+    font-size: 8px;
+    line-height: 1;
+    color: var(--text-tertiary);
+    opacity: 0.7;
+    transition: color 0.12s ease, opacity 0.12s ease;
+  }
+
+  .rail-item:hover .rail-more {
+    color: var(--accent);
+    opacity: 1;
+  }
+
+  .rail-side-label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--text-tertiary);
+    opacity: 0.85;
+    margin: 2px 0;
+    user-select: none;
+  }
+
   .rail-sep {
     width: 32px;
     height: 1px;
@@ -1513,10 +1543,99 @@ tr:hover .drag-handle {
   .icon-rail,
   .main,
   .nav-pin-btn,
-  .rail-flyout {
+  .rail-flyout,
+  .rail-coach {
     transition: none !important;
     animation: none !important;
   }
+
+  .icon-rail.rail-hint .rail-item {
+    animation: none !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  }
+}
+
+/* ---------- Coach mark + pulsation (découverte du rail) ---------- */
+.icon-rail.rail-hint .rail-item {
+  animation: rail-glow 1.6s ease 2;
+}
+
+@keyframes rail-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.35); }
+}
+
+.rail-coach {
+  position: fixed;
+  left: calc(var(--rail-w, 64px) + 14px);
+  top: 110px;
+  z-index: 110;
+  width: min(250px, calc(100vw - 100px));
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-left: 2px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
+  animation: coach-in 0.25s ease;
+}
+
+.rail-coach::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 22px;
+  border: 7px solid transparent;
+  border-right-color: var(--accent);
+}
+
+@keyframes coach-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.coach-title {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.rail-coach ul {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.rail-coach li {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding-left: 12px;
+  position: relative;
+}
+
+.rail-coach li::before {
+  content: '·';
+  position: absolute;
+  left: 2px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.coach-close {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.coach-close:hover {
+  background: #60A5FA;
 }
 
 /* ---------- Responsive ---------- */
