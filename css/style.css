@@ -1381,9 +1381,9 @@ tr:hover .drag-handle {
 
   html:not(.nav-pinned) .rail-expand-hint {
     position: fixed;
-    left: calc(var(--rail-w, 64px) - 11px);
-    /* Aligné horizontalement avec l'icône 🏠 Tableau de bord du rail
-       (12 padding + 40 logo + 6 gap + 20 demi-hauteur = 78px) */
+    /* Dans l'espace entre le rail fermé et le contenu */
+    left: calc(var(--rail-w, 64px) + 6px);
+    /* Aligné horizontalement avec l'icône 🏠 Tableau de bord du rail */
     top: 78px;
     transform: translateY(-50%);
     z-index: 78;
@@ -1391,8 +1391,7 @@ tr:hover .drag-handle {
     height: 38px;
     background: var(--surface);
     border: 1px solid var(--border-strong);
-    border-right-color: transparent;
-    border-radius: 8px 0 0 8px;
+    border-radius: 8px;
     color: var(--text-tertiary);
     font-family: var(--font-mono);
     font-size: 15px;
