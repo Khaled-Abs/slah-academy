@@ -51,12 +51,14 @@ function renderEmptyState(container, message, isSuccess = false) {
   container.innerHTML = `<div class="empty-state${isSuccess ? ' success' : ''}">${esc(message)}</div>`;
 }
 
+const NOTE_SVG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
+
 function buildAlertTable(rows, kind) {
-  if (!rows.length) {
-    if (kind === 'partial') return '<div class="empty-state">Aucun paiement partiel en attente.</div>';
-    if (kind === 'risk') return '<div class="empty-state">Aucun élève à surveiller — tout est en ordre.</div>';
-    return '<div class="empty-state success">✓ Aucun retard de paiement détecté.</div>';
-  }
+  let emptyMsg;
+  if (kind === 'partial') emptyMsg = '<div class="empty-state">Aucun paiement partiel en attente.</div>';
+  else if (kind === 'risk') emptyMsg = '<div class="empty-state">Aucun élève à surveiller — tout est en ordre.</div>';
+  else emptyMsg = '<div class="empty-state success">✓ Aucun retard de paiement détecté.</div>';
+  if (!rows.length) return emptyMsg;
   let html = `<div class="table-wrap"><table class="student-table dashboard-table">
       <thead><tr><th>Niveau</th><th>Classe</th><th>Élève</th><th>Contact</th><th>Mois</th><th>Action</th></tr></thead>
       <tbody>`;
@@ -67,9 +69,9 @@ function buildAlertTable(rows, kind) {
     const chipCls = kind === 'partial' ? 'chip-mois chip-partiel' : 'chip-mois';
     const chips = mois.map((m) => `<span class="${chipCls}">${esc(moisLabel(m))}</span>`).join('');
     const wa = s.computed.whatsapp
-      ? `<a class="btn-icon" href="${esc(s.computed.whatsapp)}" target="_blank" rel="noopener" title="WhatsApp">💬</a>`
+      ? `<a class="btn-icon btn-wa" href="${esc(s.computed.whatsapp)}" target="_blank" rel="noopener" title="WhatsApp">💬</a>`
       : '';
-    const noteHtml = s.note ? `<span class="cell-note">📝 ${esc(s.note)}</span>` : '';
+    const noteHtml = s.note ? `<span class="cell-note">${NOTE_SVG}<span>${esc(s.note)}</span></span>` : '';
     html += `<tr data-niveau="${esc(s.niveau)}" data-classe="${esc(s.classe)}" data-student-id="${esc(s.id)}">
         <td>${esc(s.niveau)}</td><td>${esc(s.classe)}</td><td>${esc(s.nomComplet)}${noteHtml}</td>
         <td class="mono">${esc(s.contactParent)}</td><td>${chips}</td><td>${wa}</td>
@@ -84,6 +86,11 @@ function renderDashboard(data, stats) {
 
   const moisCourant = moisCourantKey();
   const { lateStudents, riskStudents, partialStudents } = data;
+
+  const badgeFor = (n, kind) => {
+    const base = kind === 'partial' ? 'count-info' : (kind === 'risk' ? 'count-warn' : '');
+    return ('count-badge ' + base + (n ? '' : ' count-zero')).trim();
+  };
 
   main.innerHTML = `
     <header class="page-header dash-header">
@@ -122,7 +129,7 @@ function renderDashboard(data, stats) {
         <div class="stat-foot">élèves concernés</div>
       </div>
       <div class="card stat-card">
-        <div class="stat-top"><span class="stat-icon ic-partiel">🗓️</span><span class="stat-label">Mois en cours</span></div>
+        <div class="stat-top"><span class="stat-icon ic-month">🗓️</span><span class="stat-label">Mois en cours</span></div>
         <div class="stat-value val-mois">${esc(moisLabel(moisCourant))}</div>
         <div class="stat-foot">Mois scolaire actuel</div>
       </div>
@@ -134,17 +141,17 @@ function renderDashboard(data, stats) {
     </section>
 
     <section class="card table-card">
-      <div class="table-card-title">⚠️ Élèves en retard de paiement<span class="count-badge">${lateStudents.length}</span></div>
+      <div class="table-card-title">⚠️ Élèves en retard de paiement<span class="${badgeFor(lateStudents.length, 'late')}">${lateStudents.length}</span></div>
       ${buildAlertTable(lateStudents, 'late')}
     </section>
 
     <section class="card table-card">
-      <div class="table-card-title">👁️ Élèves à surveiller<span class="count-badge count-warn">${riskStudents.length}</span></div>
+      <div class="table-card-title">👁️ Élèves à surveiller<span class="${badgeFor(riskStudents.length, 'risk')}">${riskStudents.length}</span></div>
       ${buildAlertTable(riskStudents, 'risk')}
     </section>
 
     <section class="card table-card">
-      <div class="table-card-title">💰 Paiements partiels<span class="count-badge count-info">${partialStudents.length}</span></div>
+      <div class="table-card-title">💰 Paiements partiels<span class="${badgeFor(partialStudents.length, 'partial')}">${partialStudents.length}</span></div>
       ${buildAlertTable(partialStudents, 'partial')}
     </section>`;
 
@@ -168,8 +175,8 @@ function renderSummaryBar(students) {
     if (s.computed.hasRetard) retards++;
   });
   el.innerHTML = `
-    <div class="summary-item"><div class="summary-value">${payes}</div><div class="summary-label">Payés ce mois</div></div>
-    <div class="summary-item"><div class="summary-value">${impayes}</div><div class="summary-label">Impayés ce mois</div></div>
+    <div class="summary-item summary-payes"><div class="summary-value">${payes}</div><div class="summary-label">Payés ce mois</div></div>
+    <div class="summary-item summary-impayes"><div class="summary-value">${impayes}</div><div class="summary-label">Impayés ce mois</div></div>
     <div class="summary-item summary-retard"><div class="summary-value">${retards}</div><div class="summary-label">En retard</div></div>
     <div class="summary-item summary-mois"><div class="summary-value">${esc(moisLabel(moisCourant))}</div><div class="summary-label">Mois actuel</div></div>`;
 }
@@ -213,7 +220,7 @@ function renderClasseView(niveau, classe, students, highlightId) {
     <div id="summaryBar" class="summary-bar"></div>
 
     <div class="search-bar">
-      <span class="search-icon">🔍</span>
+      <span class="search-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>
       <input type="search" id="studentSearch" placeholder="Rechercher un élève…" autocomplete="off">
       <button type="button" class="search-clear" id="searchClear" title="Effacer" hidden>✕</button>
       <span class="search-hint" id="searchHint"></span>
@@ -258,7 +265,7 @@ function renderStudentRow(student) {
     : (student.computed.moisPayes < 5 ? 'payes-warn' : 'payes-default');
 
   const wa = student.computed.whatsapp
-    ? `<a class="btn-icon" href="${esc(student.computed.whatsapp)}" target="_blank" rel="noopener" title="WhatsApp">💬</a>`
+    ? `<a class="btn-icon btn-wa" href="${esc(student.computed.whatsapp)}" target="_blank" rel="noopener" title="WhatsApp">💬</a>`
     : '';
 
   let cells = `<td class="col-num">${student.numero || ''}</td>`;
@@ -357,11 +364,10 @@ function showToast(message, type = 'info') {
     document.body.appendChild(container);
   }
 
-  const icons = { success: '✓', error: '✗', info: 'ⓘ' };
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
-  toast.innerHTML = `<span class="toast-icon">${icons[type] || 'ⓘ'}</span><span></span>`;
-  toast.querySelector('span:last-child').textContent = message;
+  toast.innerHTML = '<span class="toast-dot"></span><span class="toast-msg"></span>';
+  toast.querySelector('.toast-msg').textContent = message;
   container.appendChild(toast);
 
   setTimeout(() => {
