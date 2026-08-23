@@ -1404,6 +1404,11 @@ tr:hover .drag-handle {
     animation: hint-flicker 1.6s ease forwards;
   }
 
+  html:not(.nav-pinned) .rail-expand-hint:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
   @keyframes hint-flicker {
     0%, 100% { opacity: 0; }
     15%, 35%, 55%, 75% { opacity: 1; }
