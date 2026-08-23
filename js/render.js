@@ -109,12 +109,12 @@ function renderDashboard(data, stats) {
       <div class="card stat-card">
         <div class="stat-top"><span class="stat-icon ic-retard">⚠️</span><span class="stat-label">En retard</span></div>
         <div class="stat-value${lateStudents.length ? ' val-retard' : ''}">${lateStudents.length}</div>
-        <div class="stat-foot">2 mois impayés consécutifs</div>
+        <div class="stat-foot">${lateStudents.length ? '2 mois impayés consécutifs' : 'Aucun retard 🎉'}</div>
       </div>
       <div class="card stat-card">
         <div class="stat-top"><span class="stat-icon ic-warn">👁️</span><span class="stat-label">À risque</span></div>
         <div class="stat-value${riskStudents.length ? ' val-warn' : ''}">${riskStudents.length}</div>
-        <div class="stat-foot">1 mois impayé · à surveiller</div>
+        <div class="stat-foot">${riskStudents.length ? '1 mois impayé · à surveiller' : 'Tout est en ordre'}</div>
       </div>
       <div class="card stat-card">
         <div class="stat-top"><span class="stat-icon ic-violet">💰</span><span class="stat-label">Paiements partiels</span></div>
