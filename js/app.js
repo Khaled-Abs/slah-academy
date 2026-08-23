@@ -877,7 +877,6 @@ function setupRailHints() {
         expandedOnceSession ||
         navPinned ||
         document.documentElement.classList.contains('nav-open') ||
-        !expandedHint ||
         document.getElementById('railCoach')
       ) return;
       expandHint.classList.add('show-flicker');

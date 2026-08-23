@@ -1382,7 +1382,9 @@ tr:hover .drag-handle {
   html:not(.nav-pinned) .rail-expand-hint {
     position: fixed;
     left: calc(var(--rail-w, 64px) - 11px);
-    top: 50%;
+    /* Aligné horizontalement avec l'icône 🏠 Tableau de bord du rail
+       (12 padding + 40 logo + 6 gap + 20 demi-hauteur = 78px) */
+    top: 78px;
     transform: translateY(-50%);
     z-index: 78;
     width: 22px;
