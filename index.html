@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Connexion — SLAH Academy</title>
+  <script>try{if(localStorage.getItem('slah_theme')==='dark')document.documentElement.classList.add('dark-mode')}catch(e){}</script>
   <meta name="description" content="SLAH Academy — espace d'administration du suivi des paiements des élèves.">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,6 +17,7 @@
   <script src="js/auth.js"></script>
 </head>
 <body class="login-body">
+  <button type="button" id="themeToggle" class="theme-toggle floating" aria-label="Basculer clair/sombre"></button>
   <main class="login-wrap">
     <div>
       <div class="login-brand">
@@ -102,6 +104,23 @@
       btn.textContent = 'Se connecter';
       showError('Email ou mot de passe incorrect.');
     });
+
+    // Theme toggle
+    const themeBtn = document.getElementById('themeToggle');
+    const MOON = '<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+    const SUN = '<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+    if (themeBtn) {
+      const paintTheme = () => {
+        themeBtn.innerHTML = document.documentElement.classList.contains('dark-mode') ? SUN : MOON;
+        themeBtn.title = document.documentElement.classList.contains('dark-mode') ? 'Mode clair' : 'Mode sombre';
+      };
+      paintTheme();
+      themeBtn.addEventListener('click', () => {
+        const dark = document.documentElement.classList.toggle('dark-mode');
+        try { localStorage.setItem('slah_theme', dark ? 'dark' : 'light'); } catch (e) {}
+        paintTheme();
+      });
+    }
   })();
   </script>
 </body>
