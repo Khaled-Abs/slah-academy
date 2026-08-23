@@ -118,3 +118,37 @@ function moisCourantKey() {
 function moisImpayes(paiementsObj) {
   return MOIS_ORDER.filter((mois) => paiementsObj[mois] === 'impaye');
 }
+
+/* Statistiques du tableau de bord, calculées depuis des élèves déjà enrichis.
+   Évite un second aller-retour base de données identique au premier. */
+function computeStatsFromStudents(students) {
+  const byMonth = {};
+  MOIS_ORDER.forEach((m) => { byMonth[m] = []; });
+  students.forEach((s) => {
+    MOIS_ORDER.forEach((m) => {
+      const st = s.paiements[m];
+      if (st) byMonth[m].push(st);
+    });
+  });
+
+  let latestMonth = null;
+  MOIS_ORDER.forEach((m) => {
+    if (byMonth[m].length) latestMonth = m;
+  });
+
+  const paidThisMonth = latestMonth
+    ? byMonth[latestMonth].filter((x) => x === 'paye').length
+    : 0;
+
+  const unpaid = new Set();
+  students.forEach((s) => {
+    if (MOIS_ORDER.some((m) => s.paiements[m] === 'impaye')) unpaid.add(s.id);
+  });
+
+  return {
+    totalStudents: students.length,
+    paidThisMonth,
+    unpaidCount: unpaid.size,
+    onTimeRate: students.length > 0 ? Math.round((paidThisMonth / students.length) * 100) : 0
+  };
+}

@@ -220,15 +220,6 @@ async function getEnrichedStudents(anneeScolaire) {
   }
 }
 
-async function getLateStudents(anneeScolaire) {
-  try {
-    const all = await getEnrichedStudents(anneeScolaire);
-    return all.filter((s) => s.computed.hasRetard);
-  } catch (error) {
-    toFrenchError(error, 'Erreur lors du chargement des élèves.');
-  }
-}
-
 async function getAnneesScolaires() {
   try {
     const { data, error } = await supabaseClient.from('students').select('annee_scolaire');
@@ -236,46 +227,6 @@ async function getAnneesScolaires() {
     return [...new Set((data || []).map((r) => r.annee_scolaire))];
   } catch (error) {
     toFrenchError(error, 'Erreur lors du chargement des années scolaires.');
-  }
-}
-
-async function getStats(anneeScolaire) {
-  try {
-    const students = await getStudents(null, null, anneeScolaire);
-    const ids = students.map((s) => s.id);
-    const paiements = await getPaiements(ids);
-
-    const totalStudents = students.length;
-
-    const byMonth = {};
-    paiements.forEach((p) => {
-      if (!byMonth[p.mois]) byMonth[p.mois] = [];
-      byMonth[p.mois].push(p);
-    });
-
-    let latestMonth = null;
-    MOIS_ORDER.forEach((mois) => {
-      if (byMonth[mois] && byMonth[mois].length) latestMonth = mois;
-    });
-
-    let paidThisMonth = 0;
-    if (latestMonth && byMonth[latestMonth]) {
-      paidThisMonth = byMonth[latestMonth].filter((p) => p.statut === 'paye').length;
-    }
-
-    const unpaid = new Set();
-    paiements.forEach((p) => {
-      if (p.statut === 'impaye') unpaid.add(p.student_id);
-    });
-
-    return {
-      totalStudents,
-      paidThisMonth,
-      unpaidCount: unpaid.size,
-      onTimeRate: totalStudents > 0 ? Math.round((paidThisMonth / totalStudents) * 100) : 0
-    };
-  } catch (error) {
-    toFrenchError(error, 'Erreur lors du chargement des statistiques.');
   }
 }
 /* ---------- Séances (calendrier) ---------- */

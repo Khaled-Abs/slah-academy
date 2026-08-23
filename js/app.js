@@ -106,15 +106,13 @@ async function navigateTo(view, niveau = null, classe = null, studentId = null) 
 
   try {
     if (view === 'dashboard') {
-      const [allStudents, stats] = await Promise.all([
-        getEnrichedStudents(ANNEE),
-        getStats(ANNEE)
-      ]);
+      // Une seule paire de requêtes : les stats sont déduites localement
+      const allStudents = await getEnrichedStudents(ANNEE);
       if (token !== loadToken) return;
       const lateStudents = allStudents.filter((s) => s.computed.hasRetard);
       const riskStudents = allStudents.filter((s) => !s.computed.hasRetard && moisImpayes(s.paiements).length > 0);
       const partialStudents = allStudents.filter((s) => MOIS_ORDER.some((m) => s.paiements[m] === 'partiel'));
-      renderDashboard({ lateStudents, riskStudents, partialStudents }, stats);
+      renderDashboard({ lateStudents, riskStudents, partialStudents }, computeStatsFromStudents(allStudents));
     } else if (view === 'classe') {
       const students = await getClasseData(niveau, classe, ANNEE);
       if (token !== loadToken) return;
