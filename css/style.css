@@ -579,16 +579,14 @@ a {
     opacity: 1;
   }
 
-  /* Position propre à l'indice : chevauche le bord droit du rail,
+  /* Position propre à l'indice : juste à droite du rail,
      aligné sur l'icône 🏠 */
   html:not(.nav-pinned) .rail-expand-hint {
     position: fixed;
-    left: calc(12px + var(--rail-w) - 14px);
+    left: calc(12px + var(--rail-w) + 4px);
     top: 76px;
     transform: translateY(-50%);
     z-index: 86;
-    font-family: var(--font-mono);
-    font-size: 15px;
     opacity: 0;
   }
 
