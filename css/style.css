@@ -728,15 +728,6 @@ a {
   margin-right: auto;
 }
 
-.year-pill {
-  background: var(--surface-sunken);
-}
-
-.year-pill:hover {
-  color: var(--ink-inverse);
-  background: var(--accent);
-}
-
 .year-wrap {
   position: relative;
   display: inline-block;

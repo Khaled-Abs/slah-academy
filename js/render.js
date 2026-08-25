@@ -105,7 +105,7 @@ function renderDashboard(data, stats) {
       <div class="dash-actions">
         <a class="btn btn-ghost" href="calendar.html" target="_blank" rel="noopener">📅 Calendrier</a>
         <span class="year-wrap">
-          <button type="button" class="year-pill" id="yearPill">Année: ${esc(ANNEE)} ▾</button>
+          <button type="button" class="btn btn-ghost" id="yearPill">🗓️ ${esc(ANNEE)} ▾</button>
           <div class="year-menu" id="yearMenu" hidden></div>
         </span>
       </div>
