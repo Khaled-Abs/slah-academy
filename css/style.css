@@ -1139,14 +1139,12 @@ a {
   align-items: center;
 }
 
+/* Le conteneur défile lui-même : les th collants restent alignés
+   avec leurs colonnes, la page n'est pas affectée */
 .table-wrap {
-  overflow: visible;
-}
-
-@media (max-width: 1200px) {
-  .table-wrap {
-    overflow-x: auto;
-  }
+  overflow: auto;
+  max-height: clamp(360px, calc(100vh - 300px), 760px);
+  overscroll-behavior: contain;
 }
 
 .student-table {
@@ -1778,6 +1776,16 @@ tr:hover .col-actions .drag-handle {
   .toast-container,
   .loading-overlay {
     display: none !important;
+  }
+
+  /* Impression : le tableau complet, sans défilement interne */
+  .table-wrap {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  .student-table th {
+    position: static !important;
   }
 
   #printReport {
