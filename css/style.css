@@ -380,7 +380,9 @@ a {
     transition: transform 0.22s var(--ease-out);
   }
 
-  html.nav-pinned .icon-rail {
+  /* Panneau ouvert/épinglé : le rail s'efface, le panneau prend SA place */
+  html.nav-pinned .icon-rail,
+  html.nav-open .icon-rail {
     transform: translateX(calc(-100% - 24px));
     visibility: hidden;
     transition: transform 0.22s var(--ease-out), visibility 0s linear 0.22s;
@@ -486,7 +488,7 @@ a {
     position: fixed;
     top: 12px;
     bottom: 12px;
-    left: calc(12px + var(--rail-w) + 8px);
+    left: 12px;
     width: 240px;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -495,7 +497,7 @@ a {
     z-index: 85;
     display: flex;
     flex-direction: column;
-    transform: translateX(calc(-100% - 120px));
+    transform: translateX(calc(-100% - 24px));
     visibility: hidden;
     transition: transform 0.22s var(--ease-out), visibility 0s linear 0.22s;
     will-change: transform;
@@ -509,7 +511,7 @@ a {
   }
 
   .main {
-    margin-left: 340px;
+    margin-left: 268px;
     padding: 28px 32px;
     max-width: 1160px;
     transition: margin-left 0.22s var(--ease-out);
@@ -520,7 +522,7 @@ a {
   }
 
   html.nav-open .main {
-    margin-left: 340px;
+    margin-left: 268px;
   }
 
   .nav-pin-btn {
@@ -581,6 +583,13 @@ a {
 
   .rail-expand-hint.show-flicker {
     animation: hint-flicker 1.6s var(--ease-out) forwards;
+  }
+
+  /* Panneau visible → l'indice n'a plus de raison d'être */
+  html.nav-pinned .rail-expand-hint,
+  html.nav-open .rail-expand-hint {
+    visibility: hidden !important;
+    pointer-events: none;
   }
 
   @keyframes hint-flicker {
