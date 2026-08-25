@@ -336,10 +336,9 @@ async function init() {
     return;
   }
 
+  if (session.user && session.user.email) currentUserEmail = session.user.email;
   const emailEl = document.getElementById('userEmail');
-  if (emailEl && session.user && session.user.email) {
-    emailEl.textContent = session.user.email;
-  }
+  if (emailEl) emailEl.textContent = currentUserEmail;
 
   const badge = document.getElementById('anneeBadge');
   if (badge) badge.textContent = ANNEE.replace('-', '\u2013');
@@ -707,6 +706,7 @@ let navPinned = true;
 let railFlyout = null;
 let expandedOnceSession = false;
 let flyoutFadeTimer = null;
+let currentUserEmail = '';
 const FLYOUT_IDLE_MS = 4000; // disparaît 4 s après que la souris l'a quitté sans clic
 
 function clearFlyoutFade() {
@@ -729,6 +729,40 @@ function closeRailFlyout() {
     railFlyout.remove();
     railFlyout = null;
   }
+}
+
+function closeUserPop() {
+  const p = document.getElementById('railUserPop');
+  if (p) p.remove();
+}
+
+function toggleUserPop(btn) {
+  const existing = document.getElementById('railUserPop');
+  if (existing) { existing.remove(); return; }
+
+  const pop = document.createElement('div');
+  pop.id = 'railUserPop';
+  pop.className = 'rail-user-pop';
+
+  const mail = document.createElement('div');
+  mail.className = 'rup-mail';
+  mail.textContent = currentUserEmail || 'Compte enseignant';
+
+  const out = document.createElement('button');
+  out.type = 'button';
+  out.className = 'rup-logout';
+  out.textContent = 'Se déconnecter';
+  out.addEventListener('click', () => {
+    logout().then(() => { window.location.href = 'index.html'; });
+  });
+
+  pop.append(mail, out);
+  document.body.appendChild(pop);
+
+  const r = btn.getBoundingClientRect();
+  const top = Math.max(12, Math.min(r.top, window.innerHeight - pop.offsetHeight - 12));
+  pop.style.top = top + 'px';
+  pop.style.left = (r.right + 10) + 'px';
 }
 
 function openRailFlyout(btn, group) {
@@ -827,6 +861,12 @@ function setupIconRail() {
 
   const isMobileViewport = () => window.matchMedia('(max-width: 900px)').matches;
 
+  // Avatar : initiale du compte
+  const userBtn = document.getElementById('railUserBtn');
+  if (userBtn) {
+    userBtn.textContent = (currentUserEmail || 'U').charAt(0).toUpperCase();
+  }
+
   pinBtn.addEventListener('click', () => {
     // Mobile : la flèche referme le tiroir
     if (isMobileViewport()) {
@@ -843,8 +883,14 @@ function setupIconRail() {
   });
 
   rail.addEventListener('click', (e) => {
-    if (e.target.closest('[data-rail-logout]')) {
-      logout().then(() => { window.location.href = 'index.html'; });
+    if (e.target.closest('#railLogo')) {
+      closeRailFlyout();
+      closeUserPop();
+      if (currentView !== 'dashboard') navigateTo('dashboard');
+      return;
+    }
+    if (e.target.closest('#railUserBtn')) {
+      toggleUserPop(document.getElementById('railUserBtn'));
       return;
     }
     if (e.target.closest('[data-rail-view]')) {
@@ -887,10 +933,18 @@ function setupIconRail() {
     if (monoBtn) showFlyoutFor(monoBtn);
   });
 
-  // Clic en dehors : referme flyout et panneau flottant
+  // Clic en dehors : referme flyout, popover compte et panneau flottant
   document.addEventListener('click', (e) => {
-    if (railFlyout && !e.target.closest('.rail-flyout') && !e.target.closest('[data-rail-niveau]')) {
+    if (
+      railFlyout &&
+      !e.target.closest('.rail-flyout') &&
+      !e.target.closest('[data-rail-niveau]')
+    ) {
       closeRailFlyout();
+    }
+    const userPop = document.getElementById('railUserPop');
+    if (userPop && !e.target.closest('.rail-user-pop') && !e.target.closest('#railUserBtn')) {
+      userPop.remove();
     }
     if (!navPinned && document.documentElement.classList.contains('nav-open')) {
       // Le bouton » vient d'ouvrir le panneau : ne pas le refermer sur ce même clic
@@ -915,6 +969,7 @@ function setupIconRail() {
       e.preventDefault();
       setNavPinned(!navPinned);
     } else if (e.key === 'Escape') {
+      closeUserPop();
       if (railFlyout) { closeRailFlyout(); return; }
       if (!navPinned) document.documentElement.classList.remove('nav-open');
     }

@@ -375,7 +375,7 @@ a {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     padding: 12px 8px;
     /* Retour du rail : léger délai pour laisser partir le panneau */
     transition: transform 0.2s var(--ease-out) 0.07s;
@@ -401,7 +401,30 @@ a {
     display: flex;
     align-items: center;
     justify-content: center;
+    border: none;
+    padding: 0;
+    cursor: pointer;
     margin-bottom: 4px;
+    transition: background-color 0.16s var(--ease-out), transform 0.16s var(--ease-out);
+  }
+
+  .rail-logo:hover {
+    background: var(--accent-hover);
+    transform: scale(1.06);
+  }
+
+  .rail-avatar {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 13px;
+    border-radius: var(--radius-full);
+  }
+
+  .rail-avatar:hover {
+    background: var(--accent);
+    color: var(--ink-inverse);
+    transform: scale(1.06);
   }
 
   .rail-item {
@@ -422,6 +445,7 @@ a {
   .rail-item:hover {
     background: var(--surface-sunken);
     color: var(--ink-1);
+    transform: scale(1.06);
   }
 
   .rail-item.active {
@@ -529,11 +553,8 @@ a {
   }
 
   .nav-pin-btn {
-    position: absolute;
-    top: 16px;
-    right: 14px;
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     border-radius: var(--radius-xs);
     border: none;
     background: transparent;
@@ -627,6 +648,50 @@ a {
   opacity: 0;
 }
 
+/* ---------- Popover compte (rail) ---------- */
+.rail-user-pop {
+  position: fixed;
+  z-index: 125;
+  min-width: 210px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: railfly-in 0.16s var(--ease-out);
+}
+
+.rup-mail {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rup-logout {
+  width: 100%;
+  background: var(--coral-soft);
+  color: var(--coral);
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+}
+
+.rup-logout:hover {
+  background: var(--coral);
+  color: var(--ink-inverse);
+}
+
 .rail-flyout-title {
   font-size: 10px;
   font-weight: 600;
@@ -661,7 +726,10 @@ a {
 
 .sidebar-top {
   position: relative;
-  padding: 20px 16px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 14px 12px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -670,12 +738,12 @@ a {
   font-size: 16px;
   font-weight: 700;
   color: var(--ink-1);
+  margin-right: auto;
 }
 
 .annee-badge,
 .year-pill {
   display: inline-block;
-  margin-top: 8px;
   border: none;
   background: var(--surface-sunken);
   color: var(--ink-2);
@@ -756,6 +824,39 @@ a {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 12px 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-mid) transparent;
+}
+
+.side-nav::-webkit-scrollbar {
+  width: 8px;
+}
+
+.side-nav::-webkit-scrollbar-thumb {
+  background: var(--border-mid);
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.nav-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 10px 10px 6px;
+}
+
+/* Entrée en cascade des éléments quand le panneau s'ouvre (desktop) */
+@media (min-width: 901px) {
+  html.nav-open .side-nav > *,
+  html.nav-pinned .side-nav > * {
+    animation: navitem-in 0.26s var(--ease-out) backwards;
+    animation-delay: calc(var(--i, 0) * 16ms);
+  }
+}
+
+@keyframes navitem-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: none; }
 }
 
 .nav-section {
@@ -917,13 +1018,13 @@ a {
 .dash-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .report-wrap {
@@ -935,7 +1036,7 @@ a {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
@@ -1070,7 +1171,13 @@ a {
 }
 
 .table-wrap {
-  overflow-x: auto;
+  overflow: visible;
+}
+
+@media (max-width: 1200px) {
+  .table-wrap {
+    overflow-x: auto;
+  }
 }
 
 .student-table {
@@ -1080,6 +1187,10 @@ a {
 }
 
 .student-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
   text-align: left;
   font-size: 11px;
   font-weight: 600;

@@ -11,15 +11,19 @@ function renderSidebar(activeNiveau, activeClasse) {
   if (!nav) return;
   const activeView = activeNiveau == null ? 'dashboard' : 'classe';
 
-  let html = '<div class="nav-section">Vue d\u2019ensemble</div>';
-  html += `<button class="nav-item ${activeView === 'dashboard' ? 'active' : ''}" data-view="dashboard"><span class="nav-icon">📊</span>Tableau de bord</button>`;
+  let i = 0;
+  const step = () => ` style="--i:${i++}"`;
 
-  html += '<div class="nav-section">Niveaux</div>';
+  let html = `<div class="nav-section"${step()}>Vue d\u2019ensemble</div>`;
+  html += `<button${step()} class="nav-item ${activeView === 'dashboard' ? 'active' : ''}" data-view="dashboard"><span class="nav-icon">📊</span>Tableau de bord</button>`;
+  html += `<div class="nav-divider"${step()}></div>`;
+  html += `<div class="nav-section"${step()}>Niveaux</div>`;
+
   STRUCTURE.forEach((group) => {
-    html += `<div class="nav-level">📁 ${esc(group.niveau)}</div>`;
+    html += `<div class="nav-level"${step()}>📁 ${esc(group.niveau)}</div>`;
     group.classes.forEach((classe) => {
       const active = activeView === 'classe' && activeNiveau === group.niveau && activeClasse === classe;
-      html += `<button class="nav-item nav-classe ${active ? 'active' : ''}" data-niveau="${esc(group.niveau)}" data-classe="${esc(classe)}">${esc(classe)}</button>`;
+      html += `<button${step()} class="nav-item nav-classe ${active ? 'active' : ''}" data-niveau="${esc(group.niveau)}" data-classe="${esc(classe)}">${esc(classe)}</button>`;
     });
   });
 
