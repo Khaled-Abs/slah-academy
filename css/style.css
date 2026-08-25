@@ -377,15 +377,16 @@ a {
     align-items: center;
     gap: 6px;
     padding: 12px 8px;
-    transition: transform 0.22s var(--ease-out);
+    /* Retour du rail : léger délai pour laisser partir le panneau */
+    transition: transform 0.2s var(--ease-out) 0.07s;
   }
 
-  /* Panneau ouvert/épinglé : le rail s'efface, le panneau prend SA place */
+  /* Panneau ouvert/épinglé : le rail s'efface vite, en premier */
   html.nav-pinned .icon-rail,
   html.nav-open .icon-rail {
     transform: translateX(calc(-100% - 24px));
     visibility: hidden;
-    transition: transform 0.22s var(--ease-out), visibility 0s linear 0.22s;
+    transition: transform 0.16s var(--ease-out), visibility 0s linear 0.16s;
   }
 
   .rail-logo {
@@ -499,7 +500,8 @@ a {
     flex-direction: column;
     transform: translateX(calc(-100% - 24px));
     visibility: hidden;
-    transition: transform 0.22s var(--ease-out), visibility 0s linear 0.22s;
+    /* Fermeture : le panneau part d'abord, vite */
+    transition: transform 0.2s var(--ease-out), visibility 0s linear 0.2s;
     will-change: transform;
   }
 
@@ -507,14 +509,15 @@ a {
   html.nav-open .sidebar {
     transform: translateX(0);
     visibility: visible;
-    transition: transform 0.22s var(--ease-out);
+    /* Entrée : léger délai après le rail, puis rebond élastique */
+    transition: transform 0.3s var(--ease-spring) 0.06s;
   }
 
   .main {
     margin-left: 268px;
     padding: 28px 32px;
     max-width: 1160px;
-    transition: margin-left 0.22s var(--ease-out);
+    transition: margin-left 0.26s var(--ease-out);
   }
 
   html:not(.nav-pinned) .main {
