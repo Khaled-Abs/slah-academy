@@ -1,0 +1,5160 @@
+
+==================== FILE: README.md ====================
+
+# SLAH Academy — Suivi des paiements
+
+Application web privée pour suivre les paiements mensuels des élèves de SLAH Academy (tuteurs privés en Tunisie). HTML/CSS/JS pur, Supabase (auth + base de données), déployée sur Vercel.
+
+## Structure
+
+```
+slah-academy/
+├── index.html            ← page de connexion
+├── app.html              ← application principale (protégée)
+├── css/style.css
+├── js/
+│   ├── auth.js           ← logique Supabase Auth
+│   ├── db.js             ← tous les appels base de données
+│   ├── compute.js        ← fonctions pures (aucune DB/DOM)
+│   ├── render.js         ← rendu DOM
+│   └── app.js            ← point d'entrée + navigation
+├── config.local.js       ← configuration locale (JAMAIS committée)
+├── .env.example
+├── vercel.json
+└── README.md
+```
+
+## Setup
+
+### 1. Cloner le dépôt
+
+```bash
+git clone https://github.com/<vous>/slah-academy.git
+cd slah-academy
+```
+
+### 2. Créer le projet Supabase et les tables
+
+1. Créez un projet sur [supabase.com](https://supabase.com).
+2. Ouvrez l'éditeur SQL (SQL Editor) et exécutez les deux scripts suivants.
+
+**Table `students` + RLS :**
+
+```sql
+create table students (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz default now(),
+  nom_complet text not null,
+  contact_parent text,
+  niveau text not null,
+  classe text not null,
+  annee_scolaire text not null default '2024-2025',
+  numero integer,
+  user_id uuid references auth.users(id) on delete cascade
+);
+
+alter table students enable row level security;
+
+create policy "Shared access for authenticated users"
+on students for all
+using (auth.role() = 'authenticated')
+with check (auth.role() = 'authenticated');
+```
+
+**Table `paiements` + RLS :**
+
+```sql
+create table paiements (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz default now(),
+  student_id uuid references students(id) on delete cascade,
+  mois text not null check (mois in ('aout','septembre','octobre','novembre','decembre','janvier','fevrier','mars','avril','mai')),
+  statut text not null check (statut in ('paye','impaye','partiel')),
+  user_id uuid references auth.users(id) on delete cascade,
+  unique(student_id, mois)
+);
+
+alter table paiements enable row level security;
+
+create policy "Shared access for authenticated users"
+on paiements for all
+using (auth.role() = 'authenticated')
+with check (auth.role() = 'authenticated');
+```
+
+**Table `sessions` (calendrier) + RLS :**
+
+```sql
+create table if not exists sessions (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz default now(),
+  titre text not null,
+  debut timestamptz not null,
+  fin timestamptz,
+  couleur text,
+  user_id uuid references auth.users(id) on delete cascade
+);
+
+alter table sessions add column if not exists couleur text;
+
+alter table sessions enable row level security;
+
+create policy "Shared access for authenticated users"
+on sessions for all
+using (auth.role() = 'authenticated')
+with check (auth.role() = 'authenticated');
+```
+
+### 3. Créer le compte enseignant
+
+Dans le tableau de bord Supabase : **Authentication → Users → Add user** et créez le compte email + mot de passe de l'enseignant. Ajoutez autant de comptes que nécessaire : ils partagent tous les mêmes données (élèves et paiements).
+
+### 4. Configuration locale
+
+Copiez `.env.example` vers `config.local.js` et remplissez avec les vraies valeurs :
+
+```bash
+cp .env.example config.local.js
+```
+
+Résultat attendu :
+
+```js
+const CONFIG = {
+  SUPABASE_URL: 'https://votre-projet.supabase.co',
+  SUPABASE_ANON_KEY: 'votre-cle-anon'
+};
+```
+
+`config.local.js` est ignoré par git et ne doit **jamais** être committé (contient les clés réelles).
+
+### 5. Tester en local
+
+Ouvrez `index.html` dans le navigateur (double-clic), ou utilisez l'extension **Live Server** de VS Code. Cliquez avec le bouton droit sur `index.html` → *Open with Live Server*.
+
+Connectez-vous avec le compte enseignant créé à l'étape 3.
+
+### 6. Pousser sur GitHub
+
+```bash
+git add .
+git commit -m "Initial commit"
+git push -u origin main
+```
+
+Vérifiez que `config.local.js` n'apparaît pas dans le commit (il est dans `.gitignore`).
+
+### 7. Connecter le dépôt à Vercel
+
+1. Allez sur [vercel.com](https://vercel.com) → **Add New Project** → `Import` votre dépôt GitHub.
+2. Le framework est détecté automatiquement (aucun build nécessaire).
+
+### 8. Variables d'environnement dans Vercel
+
+Dans les réglages du projet (Settings → Environment Variables), ajoutez :
+
+| Nom | Valeur |
+| --- | --- |
+| `SUPABASE_URL` | `https://votre-projet.supabase.co` |
+| `SUPABASE_ANON_KEY` | `votre-cle-anon` |
+
+Le `buildCommand` dans `vercel.json` génère `config.local.js` automatiquement à partir de ces variables à chaque déploiement.
+
+### 9. Déployer
+
+Vercel déploie automatiquement à chaque push sur `main` (ou cliquez sur **Deploy**).
+
+## Sécurité
+
+- **RLS activé** sur les deux tables : seuls les comptes authentifiés accèdent aux données (partagées entre comptes), et personne d'autre — même avec une clé anon fuitée.
+- La clé `anon` n'est **jamais** commitée. `config.local.js`, `.env` et `.env.local` sont dans `.gitignore`.
+- Les erreurs Supabase brutes ne sont jamais affichées dans l'interface — elles sont traduites en messages français.
+- En cas de session expirée (réponse 401/403), redirection automatique vers `index.html`.
+
+## Utilisation (ajouter vos données)
+
+1. Connectez-vous sur `https://slah-academy.vercel.app` avec l'email/mot de passe de l'enseignant.
+2. Dans la barre latérale gauche, cliquez sur un niveau puis une classe, ex. `7ème Primaire → Classe A`.
+3. **Ajouter un élève** : bouton `+ Ajouter un élève` en haut à droite → Numéro (automatique), Nom complet, Contact parent → `Ajouter`.
+4. **Marquer les paiements** : cliquez sur une cellule du mois (Août → Mai) pour faire défiler les statuts : `·` vide → `✓` payé → `✗` impayé → `~` partiel → retour à vide. Chaque clic est enregistré automatiquement.
+5. **Modifier** : double-cliquez sur un nom ou un contact pour le modifier en ligne (Entrée = valider, Échap = annuler).
+6. **Supprimer** : survolez une ligne → 🗑️ → confirmez avec `Oui`.
+7. **Réordonner** : faites glisser la poignée ↕️ d'une ligne pour changer l'ordre (le numéro est mis à jour).
+8. Le **Tableau de bord** montre le total, les retards (2 mois consécutifs impayés) et la liste des élèves en retard — cliquez sur une ligne pour aller à sa classe.
+
+Toutes les données sont enregistrées dans Supabase et restent après rechargement de la page.
+
+## Changement d'année scolaire
+
+Cliquez sur le badge d'année dans la barre latérale (ou la pilule « Année » du tableau de bord) : les saisons déjà présentes dans la base sont proposées, plus les 10 prochaines années. Le choix est mémorisé sur l'appareil ; chaque année garde ses propres élèves et paiements.
+
+## Notes
+
+- Pas de build, pas de React, pas de npm. Tout passe par CDN.
+- `config.local.js` doit être present dans le dossier pour le développement local ; il est généré par Vercel en production.
+
+==================== FILE: index.html ====================
+
+<!DOCTYPE html>
+<!-- index.html — login page -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion — SLAH Academy</title>
+  <script>try{if(localStorage.getItem('slah_theme')==='dark')document.documentElement.classList.add('dark-mode')}catch(e){}</script>
+  <meta name="description" content="SLAH Academy — espace d'administration du suivi des paiements des élèves.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="config.local.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+</head>
+<body class="login-body">
+  <button type="button" id="themeToggle" class="theme-toggle floating" aria-label="Basculer clair/sombre"></button>
+  <main class="login-wrap">
+    <div>
+      <div class="login-brand">
+        <div class="login-logo">SLAH Academy</div>
+        <div class="login-sub">Espace administration</div>
+      </div>
+      <form class="card login-card" id="loginForm" novalidate>
+        <div class="field">
+          <label class="field-label" for="loginEmail">Adresse email</label>
+          <input type="email" id="loginEmail" name="email" autocomplete="email" placeholder="vous@exemple.com" required>
+        </div>
+        <div class="field">
+          <label class="field-label" for="loginPassword">Mot de passe</label>
+          <input type="password" id="loginPassword" name="password" autocomplete="current-password" required>
+        </div>
+        <div id="loginError" class="login-error" hidden></div>
+        <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Se connecter</button>
+      </form>
+    </div>
+  </main>
+
+  <script>
+  (function () {
+    let configOk = true;
+    try {
+      initSupabase();
+    } catch (error) {
+      configOk = false;
+      console.error(error);
+    }
+
+    const form = document.getElementById('loginForm');
+    const errorEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    const emailInput = document.getElementById('loginEmail');
+    const passwordInput = document.getElementById('loginPassword');
+
+    function showError(message) {
+      errorEl.textContent = message;
+      errorEl.hidden = false;
+    }
+
+    function hideError() {
+      errorEl.textContent = '';
+      errorEl.hidden = true;
+    }
+
+    // Already authenticated → go straight to the app
+    // (?expired=1 means we were force-logged-out; wait for manual login)
+    (async function () {
+      if (configOk && !location.search.includes('expired')) {
+        const session = await getSession();
+        if (session) window.location.href = 'app.html';
+      }
+    })();
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      if (!configOk) {
+        showError('Configuration manquante. Vérifiez config.local.js.');
+        return;
+      }
+
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+
+      if (!email || !password) {
+        showError('Email ou mot de passe incorrect.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Connexion…';
+
+      const result = await login(email, password);
+      if (result.ok) {
+        window.location.href = 'app.html';
+        return;
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Se connecter';
+      showError('Email ou mot de passe incorrect.');
+    });
+
+    // Theme toggle
+    const themeBtn = document.getElementById('themeToggle');
+    const MOON = '<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+    const SUN = '<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+    if (themeBtn) {
+      const paintTheme = () => {
+        themeBtn.innerHTML = document.documentElement.classList.contains('dark-mode') ? SUN : MOON;
+        themeBtn.title = document.documentElement.classList.contains('dark-mode') ? 'Mode clair' : 'Mode sombre';
+      };
+      paintTheme();
+      themeBtn.addEventListener('click', () => {
+        const dark = document.documentElement.classList.toggle('dark-mode');
+        try { localStorage.setItem('slah_theme', dark ? 'dark' : 'light'); } catch (e) {}
+        paintTheme();
+      });
+    }
+  })();
+  </script>
+</body>
+</html>
+
+==================== FILE: app.html ====================
+
+<!DOCTYPE html>
+<!-- app.html — main application (protected) -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SLAH Academy — Suivi des paiements</title>
+  <script>try{if(localStorage.getItem('slah_theme')==='dark')document.documentElement.classList.add('dark-mode')}catch(e){}</script>
+  <script>try{if(localStorage.getItem('slah_nav_pinned')!=='0')document.documentElement.classList.add('nav-pinned')}catch(e){}</script>
+  <meta name="description" content="SLAH Academy — suivi des paiements mensuels des élèves.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="config.local.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/compute.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/app.js"></script>
+</head>
+<body>
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Chargement…</div>
+  </div>
+
+  <button id="navToggle" class="nav-toggle" aria-label="Ouvrir le menu">☰</button>
+  <div id="drawerBackdrop" class="drawer-backdrop" hidden></div>
+
+  <div class="app-shell">
+    <nav class="icon-rail" id="iconRail" aria-label="Navigation rapide">
+      <div class="rail-logo" title="SLAH Academy">S</div>
+      <button type="button" class="rail-item" data-rail-view="dashboard" data-tip="Tableau de bord">🏠</button>
+      <div class="rail-sep"></div>
+      <div class="rail-levels" id="railLevels"></div>
+      <div class="rail-spacer"></div>
+      <button type="button" class="rail-item" data-rail-logout data-tip="Se déconnecter">⎋</button>
+    </nav>
+
+    <button type="button" id="railExpandHint" class="rail-expand-hint" title="Ouvrir le menu" aria-label="Ouvrir le menu">»</button>
+
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-logo">SLAH Academy</div>
+        <span class="year-wrap">
+          <button type="button" class="annee-badge" id="anneeBadge" title="Changer d'année scolaire">2026–2027</button>
+          <div class="year-menu" id="anneeMenu" hidden></div>
+        </span>
+        <button type="button" id="themeToggle" class="theme-toggle" aria-label="Basculer clair/sombre"></button>
+        <button type="button" id="navPinBtn" class="nav-pin-btn" title="Épingler / détacher le menu (Ctrl+B)">❮</button>
+      </div>
+
+      <nav class="side-nav" id="sideNav"></nav>
+
+      <div class="sidebar-bottom">
+        <div class="user-email" id="userEmail"></div>
+        <button class="btn-logout" id="logoutBtn">Se déconnecter</button>
+      </div>
+    </aside>
+
+    <main class="main" id="mainContent"></main>
+  </div>
+
+  <script>
+    (function () {
+      const btn = document.getElementById('themeToggle');
+      if (!btn) return;
+      const MOON = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      const SUN = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+      const isDark = () => document.documentElement.classList.contains('dark-mode');
+      const paint = () => {
+        btn.innerHTML = isDark() ? SUN : MOON;
+        btn.title = isDark() ? 'Mode clair' : 'Mode sombre';
+      };
+      paint();
+      btn.addEventListener('click', () => {
+        const dark = document.documentElement.classList.toggle('dark-mode');
+        try { localStorage.setItem('slah_theme', dark ? 'dark' : 'light'); } catch (e) {}
+        paint();
+      });
+    })();
+  </script>
+</body>
+</html>
+
+==================== FILE: calendar.html ====================
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Séances hebdomadaires — SLAH Academy</title>
+  <script>try{if(localStorage.getItem('slah_theme')==='dark')document.documentElement.classList.add('dark-mode')}catch(e){}</script>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:              #F6F7FB;
+      --surface:         #FFFFFF;
+      --surface-sunken:  #F0F1F6;
+      --border:          #E7E8F0;
+      --border-mid:      #D8DAE6;
+      --ink-1:           #14151A;
+      --ink-2:           #63636F;
+      --ink-3:           #9C9CAA;
+      --accent:          #5B5FEF;
+      --accent-hover:    #4A4EDB;
+      --accent-soft:     #EEEEFD;
+      --accent-ring:     rgba(91,95,239,0.35);
+      --mint:            #17B26A;
+      --coral:           #FF6B6B;
+      --amber:           #F7A93A;
+      --shadow-sm:    0 2px 8px rgba(20,21,26,0.06);
+      --shadow-card:  0 1px 3px rgba(20,21,26,0.05), 0 12px 32px rgba(20,21,26,0.06);
+      --shadow-md:    0 8px 24px rgba(20,21,26,0.10);
+      --shadow-lg:    0 20px 56px rgba(20,21,26,0.16);
+      --radius-sm:   10px;
+      --radius-lg:   20px;
+      --radius-xl:   24px;
+      --radius-full: 999px;
+      --font-display: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      --font-body:    'Inter', -apple-system, sans-serif;
+      --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--ink-1);
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font-family: var(--font-body); cursor: pointer; color: inherit; }
+    input { font-family: var(--font-body); }
+    a { text-decoration: none; }
+
+    .topbar {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 16px 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border-mid);
+      border-radius: var(--radius-full);
+      padding: 9px 18px;
+      color: var(--ink-2);
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: var(--shadow-sm);
+      transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
+    }
+    .back-link:hover { background: var(--surface-sunken); color: var(--ink-1); }
+    .add-event-form {
+      display: flex;
+      gap: 10px;
+      flex: 1;
+      max-width: 480px;
+    }
+    .add-event-form input {
+      flex: 1;
+      height: 40px;
+      padding: 0 14px;
+      background: var(--surface-sunken);
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      color: var(--ink-1);
+      outline: none;
+      min-width: 140px;
+      transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out),
+                  box-shadow 160ms var(--ease-out);
+    }
+    .add-event-form input:focus {
+      background: var(--surface);
+      border-color: var(--accent);
+      box-shadow: var(--accent-ring) 0 0 0 4px;
+    }
+    .btn-blue {
+      height: 40px;
+      padding: 0 18px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-full);
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: var(--shadow-sm);
+      transition: background-color 160ms var(--ease-out), transform 160ms var(--ease-out),
+                  box-shadow 160ms var(--ease-out);
+    }
+    .btn-blue:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+
+    #calendar {
+      max-width: 1200px;
+      margin: 14px auto 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-card);
+      padding: 14px;
+    }
+    .loading-note {
+      max-width: 1200px;
+      margin: 0 auto;
+      color: var(--ink-3);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 0 4px 8px;
+      min-height: 18px;
+    }
+
+    /* ---- FullCalendar light theming ---- */
+    .fc { font-size: 13px; }
+    .fc-theme-standard td,
+    .fc-theme-standard th { border-color: var(--border); }
+    .fc-theme-standard .fc-scrollgrid {
+      border-color: var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .fc-toolbar-title {
+      font-family: var(--font-display);
+      font-size: 18px !important;
+      font-weight: 700 !important;
+      color: var(--ink-1);
+    }
+    .fc-col-header-cell-cushion {
+      font-family: var(--font-body);
+      color: var(--ink-3);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .fc-daygrid-day-number {
+      font-family: var(--font-body);
+      color: var(--ink-2);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .fc-timegrid-slot-label-cushion {
+      color: var(--ink-3);
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+    .fc-timegrid-slot-minor {
+      border-top-style: dashed;
+      border-color: var(--border);
+      opacity: 0.6;
+    }
+    .fc-day-today { background: var(--accent-soft) !important; }
+    .fc-highlight { background: var(--accent-soft); opacity: 0.7; }
+    .fc-timegrid-now-indicator-line { border-color: var(--coral); border-width: 2px 0 0; }
+    .fc-timegrid-now-indicator-arrow { border-color: var(--coral); }
+
+    .fc .fc-button {
+      background: var(--surface-sunken);
+      border: none;
+      border-radius: var(--radius-full);
+      color: var(--ink-2);
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: capitalize;
+      box-shadow: none !important;
+      padding: 8px 14px;
+      transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
+    }
+    .fc .fc-button:hover { background: var(--border-mid); color: var(--ink-1); }
+    .fc .fc-button-primary:not(:disabled).fc-button-active,
+    .fc .fc-button-primary:not(:disabled).fc-button-active:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+    .fc .fc-button:disabled { opacity: 0.45; }
+
+    .fc-event {
+      border-radius: var(--radius-sm);
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
+      border-width: 0;
+      padding: 1px 0;
+      cursor: pointer;
+    }
+    .fc-v-event .fc-event-main { padding: 2px 4px; }
+    .fc-event-title { font-weight: 500; }
+
+    /* ---- Éditeur de séance ---- */
+    .event-editor {
+      position: fixed;
+      top: 84px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      width: min(380px, calc(100vw - 32px));
+      background: var(--surface);
+      border: none;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+    .event-editor[hidden] { display: none; }
+    .editor-title-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-3);
+    }
+    .event-editor input {
+      height: 40px;
+      padding: 0 12px;
+      background: var(--surface-sunken);
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      color: var(--ink-1);
+      outline: none;
+      width: 100%;
+      transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out),
+                  box-shadow 160ms var(--ease-out);
+    }
+    .event-editor input:focus {
+      background: var(--surface);
+      border-color: var(--accent);
+      box-shadow: var(--accent-ring) 0 0 0 4px;
+    }
+    .editor-start {
+      font-size: 12px;
+      color: var(--ink-2);
+      font-variant-numeric: tabular-nums;
+    }
+    .palette-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-3);
+    }
+    .palette { display: flex; gap: 8px; }
+    .swatch {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: none;
+      opacity: 0.85;
+      transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out),
+                  box-shadow 160ms var(--ease-out);
+    }
+    .swatch:hover { transform: scale(1.12); opacity: 1; }
+    .swatch.sel {
+      opacity: 1;
+      box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink-1);
+    }
+    .editor-error { font-size: 12px; color: var(--coral); }
+    .editor-actions { display: flex; gap: 8px; align-items: center; }
+    .editor-actions button {
+      border: none;
+      font-weight: 600;
+      transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out),
+                  transform 160ms var(--ease-out);
+    }
+    #editorSave {
+      background: var(--accent);
+      color: #fff;
+      border-radius: var(--radius-full);
+      padding: 8px 16px;
+      font-size: 13px;
+      box-shadow: var(--shadow-sm);
+    }
+    #editorSave:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    #editorSave:disabled { opacity: 0.55; cursor: not-allowed; }
+    #editorDelete {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--coral-soft);
+      color: var(--coral);
+      font-size: 14px;
+    }
+    #editorDelete:hover { background: #FFD9D9; }
+    #editorCancel {
+      background: transparent;
+      border: 1px solid var(--border-mid);
+      border-radius: var(--radius-full);
+      padding: 8px 16px;
+      font-size: 13px;
+      color: var(--ink-2);
+      margin-left: auto;
+    }
+    #editorCancel:hover { background: var(--surface-sunken); color: var(--ink-1); }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 100;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      color: var(--ink-1);
+      padding: 10px 14px 10px 30px;
+      font-size: 13px;
+      opacity: 0;
+      transform: translateX(20px);
+      transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+      pointer-events: none;
+    }
+    .toast::before {
+      content: '';
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 8px;
+      height: 8px;
+      border-radius: var(--radius-full);
+      background: var(--mint);
+    }
+    .toast.show { opacity: 1; transform: none; }
+    .toast.error { color: var(--coral); }
+    .toast.error::before { background: var(--coral); }
+
+    @media (max-width: 640px) {
+      .topbar { flex-direction: column; align-items: stretch; }
+    }
+
+    /* ---------- Mode sombre ---------- */
+    .dark-mode {
+      --bg:              #111827;
+      --surface:         #1A202C;
+      --surface-sunken:  #374151;
+      --border:          #374151;
+      --border-mid:      #4A5568;
+
+      --ink-1:           #E2E8F0;
+      --ink-2:           #CBD5E0;
+      --ink-3:           #A0AEC0;
+
+      --accent:          #FACC15;
+      --accent-hover:    #EAB308;
+      --accent-soft:     rgba(250, 204, 21, 0.14);
+      --accent-ring:     rgba(250, 204, 21, 0.30);
+
+      --mint:            #10B981;  --mint-soft:   rgba(16, 185, 129, 0.15);
+      --coral:           #EF4444;  --coral-soft:  rgba(239, 68, 68, 0.15);
+
+      --shadow-sm:    0 2px 8px rgba(0,0,0,0.40);
+      --shadow-card:  0 1px 3px rgba(0,0,0,0.45), 0 12px 32px rgba(0,0,0,0.45);
+      --shadow-md:    0 8px 24px rgba(0,0,0,0.50);
+      --shadow-lg:    0 20px 56px rgba(0,0,0,0.60);
+    }
+
+    .dark-mode body,
+    .dark-mode { color: var(--ink-1); }
+
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-sm);
+      color: var(--ink-3);
+      transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
+    }
+    .theme-toggle:hover {
+      background: var(--surface-sunken);
+      color: var(--ink-1);
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Basculer clair/sombre"></button>
+      <a class="back-link" href="app.html">← Tableau de bord</a>
+    </div>
+    <div class="add-event-form">
+      <input type="text" id="quickTitle" placeholder="Titre de la séance (aujourd'hui)" />
+      <button class="btn-blue" onclick="quickAdd()">Ajouter</button>
+    </div>
+  </div>
+  <div class="loading-note" id="loadingNote">Chargement des séances…</div>
+
+  <div class="event-editor" id="eventEditor" hidden>
+    <span class="editor-title-label" id="editorLabel">Nouvelle séance</span>
+    <input type="text" id="editorTitle" placeholder="Titre de la séance" autocomplete="off" />
+    <div class="editor-start" id="editorStart"></div>
+    <span class="palette-label">Étiquette couleur</span>
+    <div class="palette" id="palette"></div>
+    <div class="editor-error" id="editorError" hidden></div>
+    <div class="editor-actions">
+      <button type="button" id="editorSave">Enregistrer</button>
+      <button type="button" id="editorDelete" hidden>Supprimer</button>
+      <button type="button" id="editorCancel">Annuler</button>
+    </div>
+  </div>
+
+  <div id="calendar"></div>
+  <div class="toast" id="toast"></div>
+
+  <script src="config.local.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@5.10.1/main.min.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/compute.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    let calendar = null;
+    let editingId = null;
+    let pendingStart = null;
+    let selectedCouleur = '#4C8DFF';
+
+    const PALETTE = [
+      { hex: '#4C8DFF', nom: 'Séance' },
+      { hex: '#17B26A', nom: 'Vert' },
+      { hex: '#FF6B6B', nom: 'Rouge' },
+      { hex: '#F7A93A', nom: 'Ambre' },
+      { hex: '#B15CFF', nom: 'Violet' },
+      { hex: '#12B8B0', nom: 'Turquoise' }
+    ];
+    const DEFAULT_COULEUR = '#4C8DFF';
+
+    const editorEl = document.getElementById('eventEditor');
+    const editorTitle = document.getElementById('editorTitle');
+    const editorStart = document.getElementById('editorStart');
+    const editorError = document.getElementById('editorError');
+    const editorDelete = document.getElementById('editorDelete');
+    const editorLabel = document.getElementById('editorLabel');
+    const paletteEl = document.getElementById('palette');
+
+    function showToast(message, type) {
+      const t = document.getElementById('toast');
+      t.textContent = message;
+      t.className = 'toast show' + (type === 'error' ? ' error' : '');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => { t.className = 'toast'; }, 3000);
+    }
+
+    function eventTextColor(hex) {
+      return hex.toUpperCase() === '#F7A93A' ? '#14151A' : '#FFFFFF';
+    }
+
+    function buildPalette() {
+      paletteEl.innerHTML = PALETTE.map((c) =>
+        `<button type="button" class="swatch${c.hex === selectedCouleur ? ' sel' : ''}" data-hex="${c.hex}" title="${c.nom}" style="background:${c.hex}"></button>`
+      ).join('');
+    }
+
+    paletteEl.addEventListener('click', (e) => {
+      const sw = e.target.closest('.swatch');
+      if (!sw) return;
+      selectedCouleur = sw.dataset.hex;
+      buildPalette();
+    });
+
+    function fmtDate(value) {
+      try {
+        return new Date(value).toLocaleString('fr-FR', {
+          weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+        });
+      } catch (e) { return String(value); }
+    }
+
+    function openEditor(options) {
+      editingId = options.id || null;
+      pendingStart = options.start || null;
+      selectedCouleur = options.couleur || DEFAULT_COULEUR;
+      buildPalette();
+      editorTitle.value = options.title || '';
+      editorLabel.textContent = options.id ? 'Modifier la séance' : 'Nouvelle séance';
+      editorStart.textContent = options.start ? 'Début : ' + fmtDate(options.start) : '';
+      editorError.hidden = true;
+      editorDelete.hidden = !options.id;
+      editorEl.hidden = false;
+      editorTitle.focus();
+    }
+
+    function closeEditor() {
+      editorEl.hidden = true;
+      editingId = null;
+      pendingStart = null;
+    }
+
+    function isAuthRedirect(error) {
+      return !!(error && error.redirecting);
+    }
+
+    async function refreshEvents() {
+      const note = document.getElementById('loadingNote');
+      try {
+        const rows = await getSessions();
+        if (!calendar) return;
+        calendar.removeAllEvents();
+        rows.forEach((r) => calendar.addEvent(toFcEvent(r)));
+        note.textContent = rows.length ? '' : 'Aucune séance enregistrée — cliquez sur le planning pour en créer une.';
+      } catch (error) {
+        console.error(error);
+        note.textContent = '';
+        if (!isAuthRedirect(error)) showToast(error.message || 'Erreur lors du chargement.', 'error');
+      }
+    }
+
+    function toFcEvent(row) {
+      const c = row.couleur || DEFAULT_COULEUR;
+      return {
+        id: row.id,
+        title: row.titre,
+        start: row.debut,
+        end: row.fin,
+        backgroundColor: c,
+        borderColor: c,
+        textColor: eventTextColor(c)
+      };
+    }
+
+    function handleDateClick(info) {
+      openEditor({ start: info.dateStr });
+    }
+
+    function handleEventClick(info) {
+      openEditor({
+        id: info.event.id,
+        title: info.event.title,
+        start: info.event.start ? info.event.start.toISOString() : null,
+        couleur: info.event.backgroundColor
+      });
+    }
+
+    async function handleEventDrop(info) { await persistTiming(info); }
+    async function handleEventResize(info) { await persistTiming(info); }
+
+    async function persistTiming(info) {
+      try {
+        await updateSession(info.event.id, {
+          debut: info.event.start.toISOString(),
+          fin: info.event.end ? info.event.end.toISOString() : null
+        });
+        showToast('Horaires mis à jour.', 'ok');
+      } catch (error) {
+        console.error(error);
+        info.revert();
+        if (!isAuthRedirect(error)) showToast('Erreur — horaires non enregistrés.', 'error');
+      }
+    }
+
+    async function saveEditor() {
+      const titre = editorTitle.value.trim();
+      if (!titre) {
+        editorError.textContent = 'Le titre est obligatoire.';
+        editorError.hidden = false;
+        return;
+      }
+
+      const saveBtn = document.getElementById('editorSave');
+      saveBtn.disabled = true;
+
+      try {
+        if (editingId) {
+          await updateSession(editingId, { titre, couleur: selectedCouleur });
+          const ev = calendar.getEventById(editingId);
+          if (ev) {
+            ev.setProp('title', titre);
+            ev.setProp('backgroundColor', selectedCouleur);
+            ev.setProp('borderColor', selectedCouleur);
+            ev.setProp('textColor', eventTextColor(selectedCouleur));
+          }
+          showToast('Séance modifiée.', 'ok');
+        } else {
+          let debutIso = pendingStart;
+          if (debutIso && /^\d{4}-\d{2}-\d{2}$/.test(debutIso)) debutIso += 'T08:00:00';
+          if (!debutIso) debutIso = new Date().toISOString();
+          const debut = new Date(debutIso);
+          const fin = new Date(debut.getTime() + 60 * 60 * 1000).toISOString();
+          const row = await addSession({ titre, debut: debut.toISOString(), fin, couleur: selectedCouleur });
+          calendar.addEvent(toFcEvent(row));
+          document.getElementById('loadingNote').textContent = '';
+          showToast('Séance ajoutée.', 'ok');
+        }
+        closeEditor();
+      } catch (error) {
+        console.error(error);
+        if (!isAuthRedirect(error)) showToast(error.message || 'Erreur — réessayez.', 'error');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    async function deleteEditing() {
+      if (!editingId) return;
+      const id = editingId;
+      try {
+        await deleteSessionRow(id);
+        const ev = calendar.getEventById(id);
+        if (ev) ev.remove();
+        closeEditor();
+        showToast('Séance supprimée.', 'ok');
+      } catch (error) {
+        console.error(error);
+        if (!isAuthRedirect(error)) showToast(error.message || 'Erreur — réessayez.', 'error');
+      }
+    }
+
+    async function quickAdd() {
+      const input = document.getElementById('quickTitle');
+      const titre = input.value.trim();
+      if (!titre) { input.focus(); return; }
+      try {
+        const now = new Date();
+        now.setMinutes(0, 0, 0);
+        const fin = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+        const row = await addSession({ titre, debut: now.toISOString(), fin, couleur: DEFAULT_COULEUR });
+        calendar.addEvent(toFcEvent(row));
+        document.getElementById('loadingNote').textContent = '';
+        input.value = '';
+        showToast('Séance ajoutée.', 'ok');
+      } catch (error) {
+        console.error(error);
+        if (!isAuthRedirect(error)) showToast(error.message || 'Erreur — réessayez.', 'error');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async function () {
+      try {
+        initSupabase();
+      } catch (error) {
+        console.error(error);
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const session = await getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+
+      const calendarEl = document.getElementById('calendar');
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        editable: true,
+        locale: 'fr',
+        firstDay: 1,
+        slotMinTime: '06:00:00',
+        slotMaxTime: '22:00:00',
+        slotDuration: '00:30:00',
+        slotLabelInterval: '01:00',
+        slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'timeGridWeek,timeGridDay,dayGridMonth'
+        },
+        allDaySlot: false,
+        events: [],
+        eventClick: handleEventClick,
+        dateClick: handleDateClick,
+        eventDrop: handleEventDrop,
+        eventResize: handleEventResize
+      });
+      calendar.render();
+
+      document.getElementById('editorSave').addEventListener('click', saveEditor);
+      document.getElementById('editorDelete').addEventListener('click', deleteEditing);
+      document.getElementById('editorCancel').addEventListener('click', closeEditor);
+      editorTitle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') saveEditor();
+        if (e.key === 'Escape') closeEditor();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !editorEl.hidden) closeEditor();
+      });
+
+      await refreshEvents();
+    });
+
+    // Theme toggle
+    (function () {
+      const btn = document.getElementById('themeToggle');
+      if (!btn) return;
+      const MOON = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      const SUN = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+      const isDark = () => document.documentElement.classList.contains('dark-mode');
+      const paint = () => {
+        btn.innerHTML = isDark() ? SUN : MOON;
+        btn.title = isDark() ? 'Mode clair' : 'Mode sombre';
+      };
+      paint();
+      btn.addEventListener('click', () => {
+        const dark = document.documentElement.classList.toggle('dark-mode');
+        try { localStorage.setItem('slah_theme', dark ? 'dark' : 'light'); } catch (e) {}
+        paint();
+      });
+    })();
+  </script>
+</body>
+</html>
+
+==================== FILE: css/style.css ====================
+
+/* ============================================================
+   SLAH Academy — Design System (light)
+   Plus Jakarta Sans (display) + Inter (body) · layered shadows
+   ============================================================ */
+:root {
+  /* Surfaces */
+  --bg:              #F6F7FB;
+  --surface:         #FFFFFF;
+  --surface-sunken:  #F0F1F6;
+  --surface-hover:   #FAFAFD;
+
+  /* Borders */
+  --border:          #E7E8F0;
+  --border-mid:      #D8DAE6;
+  --border-strong:   #C2C5D6;
+
+  /* Ink */
+  --ink-1:           #14151A;
+  --ink-2:           #63636F;
+  --ink-3:           #9C9CAA;
+  --ink-inverse:     #FFFFFF;
+
+  /* Accent */
+  --accent:          #5B5FEF;
+  --accent-hover:    #4A4EDB;
+  --accent-soft:     #EEEEFD;
+  --accent-ring:     rgba(91,95,239,0.35);
+
+  /* Semantic */
+  --mint:            #17B26A;  --mint-soft:   #E7F9EF;
+  --coral:           #FF6B6B;  --coral-soft:  #FFECEC;
+  --amber:           #F7A93A;  --amber-soft:  #FFF4E0;
+  --orchid:          #B15CFF;  --orchid-soft: #F5EBFF;
+  --sky:             #4C8DFF;  --sky-soft:    #EAF1FF;
+  --teal:            #12B8B0;  --teal-soft:   #E3FBF9;
+
+  /* Elevation */
+  --shadow-xs:    0 1px 2px rgba(20,21,26,0.04);
+  --shadow-sm:    0 2px 8px rgba(20,21,26,0.06);
+  --shadow-card:  0 1px 3px rgba(20,21,26,0.05), 0 12px 32px rgba(20,21,26,0.06);
+  --shadow-md:    0 8px 24px rgba(20,21,26,0.10);
+  --shadow-lg:    0 20px 56px rgba(20,21,26,0.16);
+  --shadow-focus: 0 0 0 4px var(--accent-ring);
+
+  /* Radius */
+  --radius-xs:   8px;
+  --radius-sm:   10px;
+  --radius-md:   14px;
+  --radius-lg:   20px;
+  --radius-xl:   24px;
+  --radius-full: 999px;
+
+  /* Type */
+  --font-display: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --font-body:    'Inter', -apple-system, sans-serif;
+  --font-mono:    'Inter', -apple-system, sans-serif; /* chiffres tabulaires */
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --rail-w: 64px;
+}
+
+/* ---------- Mode sombre ---------- */
+.dark-mode {
+  --bg:              #111827;
+  --surface:         #1A202C;
+  --surface-sunken:  #374151;
+  --surface-hover:   #2D3748;
+
+  --border:          #374151;
+  --border-mid:      #4A5568;
+  --border-strong:   #5B6474;
+
+  --ink-1:           #E2E8F0;
+  --ink-2:           #CBD5E0;
+  --ink-3:           #A0AEC0;
+  --ink-inverse:     #14151A;
+
+  --accent:          #FACC15;
+  --accent-hover:    #EAB308;
+  --accent-soft:     rgba(250, 204, 21, 0.14);
+  --accent-ring:     rgba(250, 204, 21, 0.30);
+
+  --mint:            #10B981;  --mint-soft:   rgba(16, 185, 129, 0.15);
+  --coral:           #EF4444;  --coral-soft:  rgba(239, 68, 68, 0.15);
+  --amber:           #F7A93A;  --amber-soft:  rgba(247, 169, 58, 0.15);
+  --orchid:          #D946EF;  --orchid-soft: rgba(217, 70, 239, 0.15);
+  --sky:             #38BDF8;
+  --teal:            #14B8A6;
+
+  --shadow-xs:    0 1px 2px rgba(0,0,0,0.35);
+  --shadow-sm:    0 2px 8px rgba(0,0,0,0.40);
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.45), 0 12px 32px rgba(0,0,0,0.45);
+  --shadow-md:    0 8px 24px rgba(0,0,0,0.50);
+  --shadow-lg:    0 20px 56px rgba(0,0,0,0.60);
+}
+
+/* ---------- Base ---------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink-1);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 300ms ease, color 300ms ease;
+}
+
+/* ---------- Bouton thème (clair/sombre) ---------- */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-xs);
+  color: var(--ink-3);
+  transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+}
+
+.theme-toggle:hover {
+  background: var(--surface-sunken);
+  color: var(--ink-1);
+}
+
+.theme-toggle.floating {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  width: 40px;
+  height: 40px;
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  color: inherit;
+}
+
+input {
+  font-family: var(--font-body);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Le hamburger n'existe qu'en mobile — jamais sur desktop */
+.nav-toggle {
+  display: none;
+}
+
+.mono,
+[class*="tabular"] {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-xs);
+}
+
+/* ---------- Card chassis ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 20px 24px;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 9px 18px;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out),
+              box-shadow 0.16s var(--ease-out), transform 0.16s var(--ease-out);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--ink-inverse);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border-mid);
+  color: var(--ink-2);
+}
+
+.btn-ghost:hover {
+  background: var(--surface-sunken);
+  color: var(--ink-1);
+}
+
+.btn-block {
+  display: block;
+  width: 100%;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--ink-2);
+  transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+}
+
+.btn-icon:hover {
+  background: var(--surface-sunken);
+  color: var(--ink-1);
+}
+
+.btn-delete:hover {
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.btn-allpaid:hover {
+  background: var(--mint-soft);
+  color: var(--mint);
+}
+
+.btn-wa {
+  background: var(--mint-soft);
+  color: var(--mint);
+}
+
+.btn-wa:hover {
+  background: var(--mint);
+  color: var(--ink-inverse);
+}
+
+/* ---------- Inputs ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.field input {
+  background: var(--surface-sunken);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  height: 40px;
+  font-size: 14px;
+  color: var(--ink-1);
+  outline: none;
+  width: 100%;
+  transition: background-color 0.16s var(--ease-out), border-color 0.16s var(--ease-out),
+              box-shadow 0.16s var(--ease-out);
+}
+
+.field input:focus {
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
+}
+
+/* ---------- Login ---------- */
+.login-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login-wrap {
+  width: 100%;
+  max-width: 380px;
+}
+
+.login-brand {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-logo {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-1);
+}
+
+.login-sub {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+
+.login-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 28px;
+}
+
+.login-error {
+  font-size: 12px;
+  color: var(--coral);
+  min-height: 16px;
+  margin-top: -6px;
+}
+
+/* ---------- Icon rail (floating) ---------- */
+@media (min-width: 901px) {
+  .icon-rail {
+    position: fixed;
+    top: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: var(--rail-w);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 8px;
+    transition: transform 0.22s var(--ease-out);
+  }
+
+  html.nav-pinned .icon-rail {
+    transform: translateX(calc(-100% - 24px));
+    visibility: hidden;
+    transition: transform 0.22s var(--ease-out), visibility 0s linear 0.22s;
+  }
+
+  .rail-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background: var(--accent);
+    color: var(--ink-inverse);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+  }
+
+  .rail-item {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    color: var(--ink-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+  }
+
+  .rail-item:hover {
+    background: var(--surface-sunken);
+    color: var(--ink-1);
+  }
+
+  .rail-item.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .rail-mono {
+    font-weight: 700;
+    font-size: 11px;
+  }
+
+  .rail-more {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    font-size: 8px;
+    line-height: 1;
+    color: var(--ink-3);
+    opacity: 0.7;
+    transition: color 0.16s var(--ease-out), opacity 0.16s var(--ease-out);
+  }
+
+  .rail-item:hover .rail-more {
+    color: var(--accent);
+    opacity: 1;
+  }
+
+  .rail-sep {
+    width: 32px;
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  .rail-spacer {
+    flex: 1;
+  }
+
+  .icon-rail [data-rail-logout]:hover {
+    background: var(--coral-soft);
+    color: var(--coral);
+  }
+
+  .icon-rail [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--ink-1);
+    color: var(--ink-inverse);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 5px 9px;
+    border-radius: var(--radius-xs);
+    white-space: nowrap;
+    z-index: 130;
+    box-shadow: var(--shadow-md);
+    pointer-events: none;
+  }
+
+  /* Panneau latéral (même unité flottante que le rail) */
+  .sidebar {
+    position: fixed;
+    top: 12px;
+    bottom: 12px;
+    left: calc(12px + var(--rail-w) + 8px);
+    width: 240px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    z-index: 85;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(calc(-100% - 120px));
+    visibility: hidden;
+    transition: transform 0.22s var(--ease-out), visibility 0s linear 0.22s;
+    will-change: transform;
+  }
+
+  html.nav-pinned .sidebar,
+  html.nav-open .sidebar {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.22s var(--ease-out);
+  }
+
+  .main {
+    margin-left: 340px;
+    padding: 28px 32px;
+    max-width: 1160px;
+    transition: margin-left 0.22s var(--ease-out);
+  }
+
+  html:not(.nav-pinned) .main {
+    margin-left: calc(12px + var(--rail-w) + 16px);
+  }
+
+  html.nav-open .main {
+    margin-left: 340px;
+  }
+
+  .nav-pin-btn {
+    position: absolute;
+    top: 16px;
+    right: 14px;
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-xs);
+    border: none;
+    background: transparent;
+    color: var(--ink-3);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+  }
+
+  .nav-pin-btn:hover {
+    color: var(--ink-1);
+    background: var(--surface-sunken);
+  }
+
+  .rail-expand-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  html:not(.nav-pinned) .rail-expand-hint {
+    position: fixed;
+    left: calc(12px + var(--rail-w) + 4px);
+    top: 86px;
+    transform: translateY(-50%);
+    z-index: 78;
+    width: 22px;
+    height: 38px;
+    background: var(--surface);
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius-xs);
+    box-shadow: var(--shadow-xs);
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+    font-size: 15px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s var(--ease-out), color 0.16s var(--ease-out),
+                border-color 0.16s var(--ease-out);
+  }
+
+  html:not(.nav-pinned) .rail-expand-hint:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    animation: none;
+    opacity: 1;
+  }
+
+  .rail-expand-hint.show-flicker {
+    animation: hint-flicker 1.6s var(--ease-out) forwards;
+  }
+
+  @keyframes hint-flicker {
+    0%, 100% { opacity: 0; }
+    15%, 35%, 55%, 75%, 95% { opacity: 1; }
+    25%, 45%, 65% { opacity: 0.2; }
+  }
+}
+
+.rail-flyout {
+  position: fixed;
+  z-index: 120;
+  min-width: 170px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: opacity 0.25s var(--ease-out);
+  animation: railfly-in 0.16s var(--ease-out);
+}
+
+@keyframes railfly-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.rail-flyout.fading {
+  opacity: 0;
+}
+
+.rail-flyout-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  padding: 6px 10px 4px;
+}
+
+.rail-flyout-item {
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  white-space: nowrap;
+  transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+}
+
+.rail-flyout-item:hover {
+  background: var(--surface-sunken);
+  color: var(--ink-1);
+}
+
+.rail-flyout-item.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sidebar-top {
+  position: relative;
+  padding: 20px 16px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-logo {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-1);
+}
+
+.annee-badge,
+.year-pill {
+  display: inline-block;
+  margin-top: 8px;
+  border: none;
+  background: var(--surface-sunken);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+}
+
+.annee-badge:hover,
+.year-pill:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.year-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.year-menu,
+.report-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 120;
+  min-width: 170px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: menu-in 0.18s var(--ease-out);
+}
+
+@keyframes menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.year-option,
+.report-item {
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  white-space: nowrap;
+  transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+}
+
+.year-option:hover,
+.report-item:hover {
+  background: var(--surface-sunken);
+  color: var(--ink-1);
+}
+
+.year-option.current {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.year-loading {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.side-nav {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 10px;
+}
+
+.nav-section {
+  padding: 10px 10px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.nav-level {
+  padding: 10px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.nav-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+}
+
+.nav-item:hover {
+  background: var(--surface-sunken);
+  color: var(--ink-1);
+}
+
+.nav-item.active {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+  color: var(--accent);
+}
+
+.nav-classe {
+  padding-left: 16px;
+}
+
+.nav-icon {
+  display: inline-block;
+  width: 18px;
+}
+
+.sidebar-bottom {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.user-email {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-logout {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-full);
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out),
+              border-color 0.16s var(--ease-out);
+}
+
+.btn-logout:hover {
+  background: var(--coral-soft);
+  border-color: transparent;
+  color: var(--coral);
+}
+
+/* ---------- Loading overlay ---------- */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(246, 247, 251, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+/* ---------- Page headers ---------- */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+}
+
+.subtitle {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+
+.dash-header {
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.dash-title h1 {
+  font-size: 24px;
+}
+
+.dash-title .subtitle {
+  margin-top: 6px;
+}
+
+.dash-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.report-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+/* ---------- Stats grid (dashboard) ---------- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.stat-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  background: var(--surface-sunken);
+}
+
+.ic-accent { background: var(--accent-soft); }
+.ic-retard { background: var(--coral-soft); }
+.ic-warn { background: var(--amber-soft); }
+.ic-violet { background: var(--orchid-soft); }
+.ic-month { background: var(--accent-soft); }
+.ic-paye { background: var(--mint-soft); }
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.val-retard { color: var(--coral); }
+.val-warn { color: var(--amber); }
+.val-violet { color: var(--orchid); }
+.val-paye { color: var(--mint); }
+.val-mois { color: var(--accent); font-size: 22px; line-height: 1.25; }
+
+.stat-foot {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+/* ---------- Summary bar (classe) ---------- */
+.summary-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.summary-item {
+  padding: 14px 18px;
+}
+
+.summary-item + .summary-item {
+  border-left: 1px solid var(--border);
+}
+
+.summary-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+.summary-payes .summary-value { color: var(--mint); }
+.summary-impayes .summary-value { color: var(--coral); }
+.summary-retard .summary-value { color: var(--coral); }
+.summary-mois .summary-value { color: var(--accent); }
+
+/* ---------- Tables ---------- */
+.table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.table-card + .table-card {
+  margin-top: 20px;
+}
+
+.table-card-title {
+  padding: 16px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.student-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.student-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.student-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  white-space: nowrap;
+  color: var(--ink-1);
+}
+
+.student-table tbody tr {
+  background: var(--surface);
+  transition: background-color 0.16s var(--ease-out);
+}
+
+.student-table tbody tr:hover {
+  background: var(--surface-hover);
+}
+
+.student-table tbody tr.row-retard {
+  border-left: 3px solid var(--coral);
+  background: rgba(255, 107, 107, 0.04);
+}
+
+.student-table tbody tr.row-complet {
+  border-left: 3px solid var(--mint);
+}
+
+.student-table tbody tr.row-highlight td {
+  background: var(--accent-soft);
+}
+
+.student-table tbody tr.row-confirm {
+  background: var(--coral-soft);
+}
+
+.student-table tbody tr.row-deleting {
+  opacity: 0.4;
+}
+
+.student-table tbody tr.dragging {
+  opacity: 0.4;
+  background: var(--surface-sunken);
+}
+
+.student-table tbody tr.drag-over td {
+  border-top: 2px dashed var(--accent);
+}
+
+.dashboard-table tbody tr {
+  cursor: pointer;
+}
+
+.dashboard-table tbody tr:hover {
+  transform: translateX(2px);
+}
+
+.col-num {
+  width: 36px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.col-nom {
+  font-weight: 500;
+  color: var(--ink-1);
+}
+
+.col-contact {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.col-wa {
+  text-align: center;
+  width: 44px;
+}
+
+.col-mois {
+  text-align: center;
+  padding: 4px;
+}
+
+.col-payes,
+.col-retard {
+  text-align: center;
+}
+
+.col-actions {
+  width: 104px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---------- Editable cells ---------- */
+.editable-cell {
+  display: inline-block;
+  border-bottom: 1px dashed transparent;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  cursor: text;
+  min-width: 20px;
+  transition: border-color 0.16s var(--ease-out);
+}
+
+.editable-cell:hover {
+  border-bottom: 1px dashed var(--border-strong);
+}
+
+.editable-cell.editing {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  border-bottom-color: transparent;
+  outline: none;
+}
+
+.col-note .editable-cell {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.col-note .editable-cell:empty::before {
+  content: '—';
+  color: var(--ink-3);
+}
+
+.cell-note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-3);
+  margin-top: 2px;
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.cell-note svg {
+  flex-shrink: 0;
+}
+
+.cell-note span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Statut chips ---------- */
+.statut-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  background: var(--surface-sunken);
+  border: 1px dashed var(--border-mid);
+  color: transparent;
+  position: relative;
+  transition: transform 0.16s var(--ease-out), box-shadow 0.16s var(--ease-out),
+              background-color 0.16s var(--ease-out);
+}
+
+.statut-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-xs);
+}
+
+.statut-chip.statut-paye {
+  background: var(--mint-soft);
+  border: 1px solid transparent;
+  color: var(--mint);
+}
+
+.statut-chip.statut-impaye {
+  background: var(--coral-soft);
+  border: 1px solid transparent;
+  color: var(--coral);
+}
+
+.statut-chip.statut-partiel {
+  background: var(--amber-soft);
+  border: 1px solid transparent;
+  color: var(--amber);
+}
+
+.statut-chip.chip-loading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.statut-chip.chip-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-mid);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.th-mark {
+  display: inline-block;
+  margin-left: 4px;
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: none;
+  border-radius: var(--radius-full);
+  vertical-align: middle;
+  opacity: 0;
+  transition: opacity 0.16s var(--ease-out), transform 0.16s var(--ease-out);
+}
+
+.student-table th:hover .th-mark {
+  opacity: 1;
+}
+
+.th-mark:hover {
+  transform: scale(1.1);
+}
+
+.th-bulk-yes,
+.th-bulk-no {
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.th-bulk-yes {
+  background: var(--accent);
+  color: var(--ink-inverse);
+}
+
+.th-bulk-yes:hover {
+  background: var(--accent-hover);
+}
+
+.th-bulk-no {
+  background: var(--surface-sunken);
+  color: var(--ink-2);
+  margin-left: 4px;
+}
+
+.th-bulk-no:hover {
+  color: var(--ink-1);
+}
+
+.th-loading {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+/* ---------- Payés / Retard columns ---------- */
+.payes-count {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-sunken);
+  color: var(--ink-2);
+}
+
+.payes-count.payes-ok {
+  background: var(--mint-soft);
+  color: var(--mint);
+}
+
+.payes-count.payes-warn {
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.retard-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--coral-soft);
+  font-size: 10px;
+}
+
+.col-retard.has-retard {
+  background: transparent;
+}
+
+/* ---------- Actions column ---------- */
+.col-actions .btn-icon,
+.col-actions .drag-handle {
+  opacity: 0;
+}
+
+tr:hover .col-actions .btn-icon,
+tr:hover .col-actions .drag-handle {
+  opacity: 1;
+}
+
+.drag-handle {
+  cursor: grab;
+  font-size: 14px;
+  color: var(--ink-3);
+  padding: 4px;
+  user-select: none;
+}
+
+.confirm-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--coral);
+  margin-right: 8px;
+}
+
+.btn-confirm-yes,
+.btn-confirm-no {
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.btn-confirm-yes {
+  background: var(--coral);
+  color: var(--ink-inverse);
+}
+
+.btn-confirm-yes:hover {
+  background: #F55;
+}
+
+.btn-confirm-no {
+  background: var(--surface-sunken);
+  color: var(--ink-2);
+  margin-left: 6px;
+}
+
+.btn-confirm-no:hover {
+  color: var(--ink-1);
+}
+
+/* ---------- Dashboard alert tables ---------- */
+.count-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 9px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.count-badge.count-zero {
+  background: var(--surface-sunken);
+  color: var(--ink-1);
+}
+
+.count-badge.count-warn {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.count-badge.count-info {
+  background: var(--orchid-soft);
+  color: var(--orchid);
+}
+
+.chip-mois {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  margin: 1px 2px;
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.chip-mois.chip-partiel {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+/* ---------- Search bar ---------- */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  margin-bottom: 16px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-full);
+  max-width: 460px;
+  transition: background-color 0.16s var(--ease-out), box-shadow 0.16s var(--ease-out);
+}
+
+.search-bar:focus-within {
+  background: var(--surface);
+  box-shadow: var(--shadow-focus);
+}
+
+.search-icon {
+  display: inline-flex;
+  color: var(--ink-3);
+}
+
+#studentSearch {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--ink-1);
+  min-width: 0;
+}
+
+#studentSearch::placeholder {
+  color: var(--ink-3);
+}
+
+.search-clear {
+  background: transparent;
+  border: none;
+  color: var(--ink-3);
+  font-size: 13px;
+  padding: 4px 6px;
+  border-radius: var(--radius-full);
+}
+
+.search-clear:hover {
+  color: var(--ink-1);
+  background: var(--border);
+}
+
+.search-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Add panel ---------- */
+.add-panel {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 20px;
+  animation: panel-in 0.18s var(--ease-out);
+}
+
+.add-panel[hidden] {
+  display: none;
+}
+
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.add-title {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.add-panel .field {
+  min-width: 0;
+}
+
+.add-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+.inline-error {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--coral);
+}
+
+/* ---------- Empty states ---------- */
+.empty-state {
+  padding: 28px 20px;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+  border: 1.5px dashed var(--border-mid);
+  border-radius: var(--radius-md);
+  margin: 8px;
+}
+
+.empty-state.success {
+  background: var(--mint-soft);
+  border-color: transparent;
+  border-radius: var(--radius-full);
+  color: var(--mint);
+  margin: 16px;
+}
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 60px 20px;
+}
+
+.error-state-msg {
+  font-size: 14px;
+  color: var(--coral);
+}
+
+/* ---------- Toasts ---------- */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--ink-1);
+  min-width: 220px;
+  max-width: 320px;
+  animation: toast-in 0.2s var(--ease-out);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: none; }
+}
+
+.toast-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--mint);
+  flex-shrink: 0;
+}
+
+.toast-error .toast-dot {
+  background: var(--coral);
+}
+
+/* ---------- Error state retry ---------- */
+
+/* ---------- Rapport classe ---------- */
+#printReport { display: none; }
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    height: auto !important;
+  }
+
+  .app-shell,
+  .icon-rail,
+  .nav-toggle,
+  .drawer-backdrop,
+  .toast-container,
+  .loading-overlay {
+    display: none !important;
+  }
+
+  #printReport {
+    display: block !important;
+    padding: 24px;
+    background: #fff;
+    color: #000;
+    font-size: 12px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .p-head { margin-bottom: 14px; }
+  .p-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+  .p-sub, .p-stats { font-size: 11px; color: #555; margin-top: 2px; }
+
+  .p-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  .p-table th, .p-table td { border: 1px solid #999; padding: 5px 7px; text-align: left; }
+  .p-table th {
+    background: #f0f0f0;
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
+  .p-num { width: 26px; text-align: center; }
+  .p-mois { text-align: center; }
+  .p-payes { text-align: center; }
+  .p-nom { font-weight: 600; }
+  .p-note { display: block; font-weight: 400; font-size: 9px; color: #666; }
+  .p-empty { text-align: center; color: #777; padding: 20px; }
+  .p-legend { margin-top: 10px; font-size: 10px; color: #666; }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .rail-expand-hint.show-flicker {
+    opacity: 1;
+  }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .icon-rail,
+  .rail-expand-hint {
+    display: none !important;
+  }
+
+  .main {
+    margin-left: 0 !important;
+    padding: 20px;
+    padding-top: 72px;
+    max-width: 100%;
+  }
+
+  .page-header {
+    flex-direction: column;
+  }
+
+  .nav-toggle {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    font-size: 17px;
+    background: var(--surface);
+    color: var(--ink-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-md);
+  }
+
+  .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 94;
+    background: rgba(20, 21, 26, 0.35);
+    backdrop-filter: blur(6px);
+    border: none;
+    padding: 0;
+  }
+
+  .sidebar {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: transform 0.22s var(--ease-out), visibility 0s linear 0.22s;
+    z-index: 95;
+    width: min(300px, 84vw);
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.22s var(--ease-out);
+  }
+
+  .add-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+==================== FILE: js/auth.js ====================
+
+/* js/auth.js — Supabase auth logic */
+
+let supabaseClient = null;
+
+function initSupabase() {
+  if (supabaseClient) return supabaseClient;
+  if (typeof CONFIG === 'undefined' || !CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) {
+    throw new Error('Configuration Supabase manquante. Vérifiez config.local.js.');
+  }
+  if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+    throw new Error('Bibliothèque Supabase non chargée.');
+  }
+  supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  return supabaseClient;
+}
+
+function isSupabaseReady() {
+  return !!supabaseClient;
+}
+
+async function getSession() {
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    return session;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+async function login(email, password) {
+  try {
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return { ok: true };
+  } catch (error) {
+    console.error(error);
+    return { ok: false };
+  }
+}
+
+async function logout() {
+  try {
+    await supabaseClient.auth.signOut();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Wipes stored tokens and drops the cached client. Called when a DB call
+// surfaces a 401/403 — the session is gone, so we must clear local state
+// before redirecting to the login page.
+function clearSession() {
+  try {
+    if (supabaseClient && supabaseClient.auth && typeof supabaseClient.auth.signOut === 'function') {
+      supabaseClient.auth.signOut().catch(() => {});
+    }
+  } catch (error) {
+    // ignore — we're already clearing out
+  }
+  try {
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('sb-') || key.includes('supabase')) localStorage.removeItem(key);
+    });
+  } catch (error) {
+    // ignore — storage may be unavailable
+  }
+  supabaseClient = null;
+}
+
+==================== FILE: js/compute.js ====================
+
+/* js/compute.js — pure functions, no DOM, no DB */
+
+const MOIS_ORDER = [
+  'aout',
+  'septembre',
+  'octobre',
+  'novembre',
+  'decembre',
+  'janvier',
+  'fevrier',
+  'mars',
+  'avril',
+  'mai'
+];
+
+const MOIS_LABELS = {
+  aout: 'Août',
+  septembre: 'Septembre',
+  octobre: 'Octobre',
+  novembre: 'Novembre',
+  decembre: 'Décembre',
+  janvier: 'Janvier',
+  fevrier: 'Février',
+  mars: 'Mars',
+  avril: 'Avril',
+  mai: 'Mai'
+};
+
+const MOIS_COURTS = {
+  aout: 'Août',
+  septembre: 'Sep',
+  octobre: 'Oct',
+  novembre: 'Nov',
+  decembre: 'Déc',
+  janvier: 'Jan',
+  fevrier: 'Fév',
+  mars: 'Mar',
+  avril: 'Avr',
+  mai: 'Mai'
+};
+
+function moisPayes(paiementsObj) {
+  return MOIS_ORDER.reduce((count, mois) => count + (paiementsObj[mois] === 'paye' ? 1 : 0), 0);
+}
+
+function moisManquants(paiementsObj) {
+  return MOIS_ORDER.reduce((count, mois) => count + (!paiementsObj[mois] ? 1 : 0), 0);
+}
+
+function hasRetard(paiementsObj) {
+  for (let i = 0; i < MOIS_ORDER.length - 1; i++) {
+    if (paiementsObj[MOIS_ORDER[i]] === 'impaye' && paiementsObj[MOIS_ORDER[i + 1]] === 'impaye') {
+      return true;
+    }
+  }
+  return false;
+}
+
+function whatsappLink(tel) {
+  if (!tel || !String(tel).trim()) return '';
+  let clean = String(tel)
+    .replace(/[\s\-\(\)]/g, '')
+    .replace(/^\+/, '');
+  if (clean.startsWith('00')) {
+    clean = '216' + clean.slice(2);
+  } else if (clean.startsWith('0')) {
+    clean = '216' + clean.slice(1);
+  } else if (!clean.startsWith('216')) {
+    clean = '216' + clean;
+  }
+  return 'https://wa.me/' + clean;
+}
+
+function moisLabel(moisKey) {
+  return MOIS_LABELS[moisKey] || moisKey;
+}
+
+function nextStatut(currentStatut) {
+  const cycle = ['', 'paye', 'impaye', 'partiel'];
+  const idx = cycle.indexOf(currentStatut);
+  return cycle[(idx + 1) % cycle.length];
+}
+
+function statutClass(statut) {
+  switch (statut) {
+    case 'paye': return 'statut-paye';
+    case 'impaye': return 'statut-impaye';
+    case 'partiel': return 'statut-partiel';
+    default: return 'statut-vide';
+  }
+}
+
+function statutGlyph(statut) {
+  switch (statut) {
+    case 'paye': return '✓';
+    case 'impaye': return '✗';
+    case 'partiel': return '~';
+    default: return '·';
+  }
+}
+
+function moisCourantKey() {
+  const map = {
+    0: 'janvier',
+    1: 'fevrier',
+    2: 'mars',
+    3: 'avril',
+    4: 'mai',
+    7: 'aout',
+    8: 'septembre',
+    9: 'octobre',
+    10: 'novembre',
+    11: 'decembre'
+  };
+  return map[new Date().getMonth()] || 'mai';
+}
+
+function moisImpayes(paiementsObj) {
+  return MOIS_ORDER.filter((mois) => paiementsObj[mois] === 'impaye');
+}
+
+/* Statistiques du tableau de bord, calculées depuis des élèves déjà enrichis.
+   Évite un second aller-retour base de données identique au premier. */
+function computeStatsFromStudents(students) {
+  const byMonth = {};
+  MOIS_ORDER.forEach((m) => { byMonth[m] = []; });
+  students.forEach((s) => {
+    MOIS_ORDER.forEach((m) => {
+      const st = s.paiements[m];
+      if (st) byMonth[m].push(st);
+    });
+  });
+
+  let latestMonth = null;
+  MOIS_ORDER.forEach((m) => {
+    if (byMonth[m].length) latestMonth = m;
+  });
+
+  const paidThisMonth = latestMonth
+    ? byMonth[latestMonth].filter((x) => x === 'paye').length
+    : 0;
+
+  const unpaid = new Set();
+  students.forEach((s) => {
+    if (MOIS_ORDER.some((m) => s.paiements[m] === 'impaye')) unpaid.add(s.id);
+  });
+
+  return {
+    totalStudents: students.length,
+    paidThisMonth,
+    unpaidCount: unpaid.size,
+    onTimeRate: students.length > 0 ? Math.round((paidThisMonth / students.length) * 100) : 0
+  };
+}
+
+==================== FILE: js/db.js ====================
+
+/* js/db.js — all Supabase database calls. Every function is async, returns data or throws a French error string. Never exposes raw Supabase errors to the UI. */
+
+function isAuthError(error) {
+  if (!error) return false;
+  const status = Number(error.status ?? 0);
+  if (status === 401 || status === 403) return true;
+  const code = String(error.code || '');
+  if (code.startsWith('PGRST30')) return true; // JWT expiré côté PostgREST
+  const msg = String(
+    error.message || error.error_description || error.details || ''
+  );
+  // Signaux d'authentification NON ambigus uniquement.
+  // L'ancienne règle large (/auth|session|permission/) classait à tort les
+  // erreurs de la table « sessions » (RLS…) comme une fin de session.
+  return /jwt expired|invalid jwt|invalid claim|refresh token|auth session missing|not authenticated|invalid login credentials|user banned|email not confirmed|token used too early|token used too late/i.test(msg);
+}
+
+function handleDbError(error) {
+  console.error(error);
+  if (isAuthError(error)) {
+    clearSession();
+    window.location.href = 'index.html?expired=1';
+    const sessionError = new Error('Session expirée. Veuillez vous reconnecter.');
+    sessionError.redirecting = true;
+    return sessionError;
+  }
+  return null;
+}
+
+function toFrenchError(error, frenchMessage) {
+  if (error && error.redirecting) throw error;
+  const sessionError = handleDbError(error);
+  if (sessionError) throw sessionError;
+  const code = String((error && error.code) || '');
+  const msg = String((error && error.message) || '');
+  if (code === '42P01' || /does not exist/i.test(msg)) {
+    throw new Error(frenchMessage + ' Table absente : exécutez le script SQL dans Supabase.');
+  }
+  if (code === '42501') {
+    throw new Error(frenchMessage + ' Accès refusé par la sécurité (RLS).');
+  }
+  if (code === 'PGRST204' || /could not find the .* column/i.test(msg)) {
+    throw new Error(frenchMessage + ' Colonne manquante : exécutez « alter table sessions add column if not exists couleur text; » dans Supabase.');
+  }
+  throw new Error(frenchMessage);
+}
+
+function emptyPaiements() {
+  const obj = {};
+  MOIS_ORDER.forEach((mois) => { obj[mois] = ''; });
+  return obj;
+}
+
+function enrichStudent(row, paiementsByStudent) {
+  const paiements = emptyPaiements();
+  const raw = paiementsByStudent[row.id] || {};
+  MOIS_ORDER.forEach((mois) => {
+    paiements[mois] = raw[mois] || '';
+  });
+  return {
+    id: row.id,
+    nomComplet: row.nom_complet,
+    contactParent: row.contact_parent || '',
+    note: row.note || '',
+    niveau: row.niveau,
+    classe: row.classe,
+    anneeScolaire: row.annee_scolaire,
+    numero: row.numero,
+    paiements,
+    computed: {
+      moisPayes: moisPayes(paiements),
+      moisManquants: moisManquants(paiements),
+      hasRetard: hasRetard(paiements),
+      whatsapp: whatsappLink(row.contact_parent)
+    }
+  };
+}
+
+async function getUserOnce() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  return user;
+}
+
+async function getStudents(niveau, classe, anneeScolaire) {
+  try {
+    let query = supabaseClient.from('students').select('*');
+    if (niveau) query = query.eq('niveau', niveau);
+    if (classe) query = query.eq('classe', classe);
+    if (anneeScolaire) query = query.eq('annee_scolaire', anneeScolaire);
+    query = query.order('numero', { ascending: true });
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors du chargement des élèves.');
+  }
+}
+
+async function getPaiements(studentIds) {
+  try {
+    if (!studentIds.length) return [];
+    const { data, error } = await supabaseClient
+      .from('paiements')
+      .select('*')
+      .in('student_id', studentIds);
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors du chargement des paiements.');
+  }
+}
+
+async function getClasseData(niveau, classe, anneeScolaire) {
+  try {
+    const students = await getStudents(niveau, classe, anneeScolaire);
+    const ids = students.map((s) => s.id);
+    const paiements = await getPaiements(ids);
+    const byStudent = {};
+    paiements.forEach((p) => {
+      if (!byStudent[p.student_id]) byStudent[p.student_id] = {};
+      byStudent[p.student_id][p.mois] = p.statut;
+    });
+    return students.map((row) => enrichStudent(row, byStudent));
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors du chargement des élèves.');
+  }
+}
+
+async function addStudent({ nomComplet, contactParent, niveau, classe, anneeScolaire, numero }) {
+  try {
+    const user = await getUserOnce();
+    const { data, error } = await supabaseClient
+      .from('students')
+      .insert({
+        nom_complet: nomComplet,
+        contact_parent: contactParent || null,
+        niveau,
+        classe,
+        annee_scolaire: anneeScolaire,
+        numero,
+        user_id: user.id
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    toFrenchError(error, "Erreur lors de l'ajout de l'élève.");
+  }
+}
+
+async function updateStudent(id, fields) {
+  try {
+    const payload = {};
+    if ('nomComplet' in fields) payload.nom_complet = fields.nomComplet;
+    if ('contactParent' in fields) payload.contact_parent = fields.contactParent;
+    if ('numero' in fields) payload.numero = fields.numero;
+    if ('note' in fields) payload.note = fields.note;
+    const { error } = await supabaseClient.from('students').update(payload).eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    toFrenchError(error, "Erreur lors de la modification de l'élève.");
+  }
+}
+
+async function deleteStudent(id) {
+  try {
+    const { error } = await supabaseClient.from('students').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    toFrenchError(error, "Erreur lors de la suppression de l'élève.");
+  }
+}
+
+async function setPaiement(studentId, mois, statut) {
+  try {
+    const user = await getUserOnce();
+    const { error } = await supabaseClient
+      .from('paiements')
+      .upsert(
+        { student_id: studentId, mois, statut, user_id: user.id },
+        { onConflict: 'student_id,mois' }
+      );
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors de la mise à jour du paiement.');
+  }
+}
+
+async function deletePaiement(studentId, mois) {
+  try {
+    const { error } = await supabaseClient
+      .from('paiements')
+      .delete()
+      .eq('student_id', studentId)
+      .eq('mois', mois);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors de la mise à jour du paiement.');
+  }
+}
+
+async function getEnrichedStudents(anneeScolaire) {
+  try {
+    const students = await getStudents(null, null, anneeScolaire);
+    const ids = students.map((s) => s.id);
+    const paiements = await getPaiements(ids);
+    const byStudent = {};
+    paiements.forEach((p) => {
+      if (!byStudent[p.student_id]) byStudent[p.student_id] = {};
+      byStudent[p.student_id][p.mois] = p.statut;
+    });
+    return students.map((row) => enrichStudent(row, byStudent));
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors du chargement des élèves.');
+  }
+}
+
+async function getAnneesScolaires() {
+  try {
+    const { data, error } = await supabaseClient.from('students').select('annee_scolaire');
+    if (error) throw error;
+    return [...new Set((data || []).map((r) => r.annee_scolaire))];
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors du chargement des années scolaires.');
+  }
+}
+/* ---------- Séances (calendrier) ---------- */
+
+async function getSessions() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('sessions')
+      .select('*')
+      .order('debut', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors du chargement des séances.');
+  }
+}
+
+async function addSession({ titre, debut, fin, couleur }) {
+  try {
+    const user = await getUserOnce();
+    const { data, error } = await supabaseClient
+      .from('sessions')
+      .insert({ titre, debut, fin: fin || null, couleur: couleur || null, user_id: user.id })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    toFrenchError(error, "Erreur lors de l'ajout de la séance.");
+  }
+}
+
+async function updateSession(id, fields) {
+  try {
+    const payload = {};
+    if ('titre' in fields) payload.titre = fields.titre;
+    if ('debut' in fields) payload.debut = fields.debut;
+    if ('fin' in fields) payload.fin = fields.fin;
+    if ('couleur' in fields) payload.couleur = fields.couleur;
+    const { error } = await supabaseClient.from('sessions').update(payload).eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors de la modification de la séance.');
+  }
+}
+
+async function deleteSessionRow(id) {
+  try {
+    const { error } = await supabaseClient.from('sessions').delete().eq('id', id);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    toFrenchError(error, 'Erreur lors de la suppression de la séance.');
+  }
+}
+
+==================== FILE: js/render.js ====================
+
+/* js/render.js — all DOM rendering functions */
+
+function esc(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function renderSidebar(activeNiveau, activeClasse) {
+  const nav = document.getElementById('sideNav');
+  if (!nav) return;
+  const activeView = activeNiveau == null ? 'dashboard' : 'classe';
+
+  let html = '<div class="nav-section">Vue d\u2019ensemble</div>';
+  html += `<button class="nav-item ${activeView === 'dashboard' ? 'active' : ''}" data-view="dashboard"><span class="nav-icon">📊</span>Tableau de bord</button>`;
+
+  html += '<div class="nav-section">Niveaux</div>';
+  STRUCTURE.forEach((group) => {
+    html += `<div class="nav-level">📁 ${esc(group.niveau)}</div>`;
+    group.classes.forEach((classe) => {
+      const active = activeView === 'classe' && activeNiveau === group.niveau && activeClasse === classe;
+      html += `<button class="nav-item nav-classe ${active ? 'active' : ''}" data-niveau="${esc(group.niveau)}" data-classe="${esc(classe)}">${esc(classe)}</button>`;
+    });
+  });
+
+  nav.innerHTML = html;
+}
+
+const RAIL_MONOS = {
+  '7ème Primaire': '7P',
+  '8ème Primaire': '8P',
+  '9ème Primaire': '9P',
+  '1ère Secondaire': '1S',
+  '2ème Secondaire': '2S',
+  '3ème Secondaire': '3S',
+  'Bac': 'BAC'
+};
+
+function renderIconRail(activeNiveau) {
+  const holder = document.getElementById('railLevels');
+  if (!holder) return;
+  const dashBtn = document.querySelector('.icon-rail [data-rail-view]');
+  if (dashBtn) dashBtn.classList.toggle('active', activeNiveau == null);
+  holder.innerHTML = STRUCTURE.map((group) => {
+    const active = activeNiveau === group.niveau;
+    return `<button type="button" class="rail-item rail-mono${active ? ' active' : ''}" data-rail-niveau="${esc(group.niveau)}" aria-label="${esc(group.niveau)}">${RAIL_MONOS[group.niveau] || '•'}<span class="rail-more">›</span></button>`;
+  }).join('');
+}
+
+function renderEmptyState(container, message, isSuccess = false) {
+  container.innerHTML = `<div class="empty-state${isSuccess ? ' success' : ''}">${esc(message)}</div>`;
+}
+
+const NOTE_SVG = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
+
+function buildAlertTable(rows, kind) {
+  let emptyMsg;
+  if (kind === 'partial') emptyMsg = '<div class="empty-state">Aucun paiement partiel en attente.</div>';
+  else if (kind === 'risk') emptyMsg = '<div class="empty-state">Aucun élève à surveiller — tout est en ordre.</div>';
+  else emptyMsg = '<div class="empty-state success">✓ Aucun retard de paiement détecté.</div>';
+  if (!rows.length) return emptyMsg;
+  let html = `<div class="table-wrap"><table class="student-table dashboard-table">
+      <thead><tr><th>Niveau</th><th>Classe</th><th>Élève</th><th>Contact</th><th>Mois</th><th>Action</th></tr></thead>
+      <tbody>`;
+  rows.forEach((s) => {
+    const mois = kind === 'partial'
+      ? MOIS_ORDER.filter((m) => s.paiements[m] === 'partiel')
+      : moisImpayes(s.paiements);
+    const chipCls = kind === 'partial' ? 'chip-mois chip-partiel' : 'chip-mois';
+    const chips = mois.map((m) => `<span class="${chipCls}">${esc(moisLabel(m))}</span>`).join('');
+    const wa = s.computed.whatsapp
+      ? `<a class="btn-icon btn-wa" href="${esc(s.computed.whatsapp)}" target="_blank" rel="noopener" title="WhatsApp">💬</a>`
+      : '';
+    const noteHtml = s.note ? `<span class="cell-note">${NOTE_SVG}<span>${esc(s.note)}</span></span>` : '';
+    html += `<tr data-niveau="${esc(s.niveau)}" data-classe="${esc(s.classe)}" data-student-id="${esc(s.id)}">
+        <td>${esc(s.niveau)}</td><td>${esc(s.classe)}</td><td>${esc(s.nomComplet)}${noteHtml}</td>
+        <td class="mono">${esc(s.contactParent)}</td><td>${chips}</td><td>${wa}</td>
+      </tr>`;
+  });
+  return html + '</tbody></table></div>';
+}
+
+function renderDashboard(data, stats) {
+  const main = document.getElementById('mainContent');
+  if (!main) return;
+
+  const moisCourant = moisCourantKey();
+  const { lateStudents, riskStudents, partialStudents } = data;
+
+  const badgeFor = (n, kind) => {
+    const base = kind === 'partial' ? 'count-info' : (kind === 'risk' ? 'count-warn' : '');
+    return ('count-badge ' + base + (n ? '' : ' count-zero')).trim();
+  };
+
+  main.innerHTML = `
+    <header class="page-header dash-header">
+      <div class="dash-title">
+        <h1>Tableau de bord</h1>
+        <p class="subtitle">Suivi des paiements — SLAH Academy</p>
+      </div>
+      <div class="dash-actions">
+        <a class="btn btn-ghost" href="calendar.html" target="_blank" rel="noopener">📅 Calendrier</a>
+        <span class="year-wrap">
+          <button type="button" class="year-pill" id="yearPill">Année: ${esc(ANNEE)} ▾</button>
+          <div class="year-menu" id="yearMenu" hidden></div>
+        </span>
+      </div>
+    </header>
+
+    <section class="stats-grid dash-stats">
+      <div class="card stat-card">
+        <div class="stat-top"><span class="stat-icon ic-accent">👥</span><span class="stat-label">Élèves inscrits</span></div>
+        <div class="stat-value">${stats.totalStudents}</div>
+        <div class="stat-foot">Saison ${esc(ANNEE)}</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-top"><span class="stat-icon ic-retard">⚠️</span><span class="stat-label">En retard</span></div>
+        <div class="stat-value${lateStudents.length ? ' val-retard' : ''}">${lateStudents.length}</div>
+        <div class="stat-foot">${lateStudents.length ? '2 mois impayés consécutifs' : 'Aucun retard 🎉'}</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-top"><span class="stat-icon ic-warn">👁️</span><span class="stat-label">À risque</span></div>
+        <div class="stat-value${riskStudents.length ? ' val-warn' : ''}">${riskStudents.length}</div>
+        <div class="stat-foot">${riskStudents.length ? '1 mois impayé · à surveiller' : 'Tout est en ordre'}</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-top"><span class="stat-icon ic-violet">💰</span><span class="stat-label">Paiements partiels</span></div>
+        <div class="stat-value${partialStudents.length ? ' val-violet' : ''}">${partialStudents.length}</div>
+        <div class="stat-foot">élèves concernés</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-top"><span class="stat-icon ic-month">🗓️</span><span class="stat-label">Mois en cours</span></div>
+        <div class="stat-value val-mois">${esc(moisLabel(moisCourant))}</div>
+        <div class="stat-foot">Mois scolaire actuel</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-top"><span class="stat-icon ic-paye">🎯</span><span class="stat-label">Ponctualité</span></div>
+        <div class="stat-value val-paye">${stats.onTimeRate}%</div>
+        <div class="stat-foot">${stats.paidThisMonth}/${stats.totalStudents} payés · dernier mois saisi</div>
+      </div>
+    </section>
+
+    <section class="card table-card">
+      <div class="table-card-title">⚠️ Élèves en retard de paiement<span class="${badgeFor(lateStudents.length, 'late')}">${lateStudents.length}</span></div>
+      ${buildAlertTable(lateStudents, 'late')}
+    </section>
+
+    <section class="card table-card">
+      <div class="table-card-title">👁️ Élèves à surveiller<span class="${badgeFor(riskStudents.length, 'risk')}">${riskStudents.length}</span></div>
+      ${buildAlertTable(riskStudents, 'risk')}
+    </section>
+
+    <section class="card table-card">
+      <div class="table-card-title">💰 Paiements partiels<span class="${badgeFor(partialStudents.length, 'partial')}">${partialStudents.length}</span></div>
+      ${buildAlertTable(partialStudents, 'partial')}
+    </section>`;
+
+  const retards = main.querySelectorAll('.dashboard-table tbody tr');
+  retards.forEach((row) => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-icon')) return;
+      navigateTo('classe', row.dataset.niveau, row.dataset.classe, row.dataset.studentId);
+    });
+  });
+}
+
+function renderSummaryBar(students) {
+  const el = document.getElementById('summaryBar');
+  if (!el) return;
+  const moisCourant = moisCourantKey();
+  let payes = 0, impayes = 0, retards = 0;
+  students.forEach((s) => {
+    if (s.paiements[moisCourant] === 'paye') payes++;
+    else if (s.paiements[moisCourant] === 'impaye') impayes++;
+    if (s.computed.hasRetard) retards++;
+  });
+  el.innerHTML = `
+    <div class="summary-item summary-payes"><div class="summary-value">${payes}</div><div class="summary-label">Payés ce mois</div></div>
+    <div class="summary-item summary-impayes"><div class="summary-value">${impayes}</div><div class="summary-label">Impayés ce mois</div></div>
+    <div class="summary-item summary-retard"><div class="summary-value">${retards}</div><div class="summary-label">En retard</div></div>
+    <div class="summary-item summary-mois"><div class="summary-value">${esc(moisLabel(moisCourant))}</div><div class="summary-label">Mois actuel</div></div>`;
+}
+
+function renderClasseView(niveau, classe, students, highlightId) {
+  const main = document.getElementById('mainContent');
+  if (!main) return;
+
+  const nextNumero = students.reduce((max, s) => Math.max(max, s.numero || 0), 0) + 1;
+
+  let thead = '<thead><tr>'
+    + '<th class="col-num">#</th>'
+    + '<th>Nom complet</th>'
+    + '<th>Contact</th>'
+    + '<th class="col-wa">WhatsApp</th>';
+  MOIS_ORDER.forEach((mois) => {
+    thead += `<th><span>${esc(MOIS_COURTS[mois])}</span><button type="button" class="th-mark" data-mois="${mois}" title="Classe entière « payé » en ${esc(moisLabel(mois))}">✓</button></th>`;
+  });
+  thead += '<th>Note</th><th>Payés</th><th>Retard</th><th class="col-actions">Actions</th></tr></thead>';
+
+  main.innerHTML = `
+    <header class="page-header">
+      <div>
+        <h1>${esc(niveau)} — ${esc(classe)}</h1>
+        <p class="subtitle">${students.length} élèves · Année ${esc(ANNEE)}</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-ghost" id="btnBackDashboard">Tableau de bord</button>
+        <span class="report-wrap">
+          <button type="button" class="btn btn-ghost" id="btnReport">📄 Rapport ▾</button>
+          <div class="report-menu" id="reportMenu" hidden>
+            <button type="button" class="report-item" data-report-action="print">🖨️ Imprimer</button>
+            <button type="button" class="report-item" data-report-action="csv">📥 Exporter CSV</button>
+          </div>
+        </span>
+        <button class="btn btn-primary" id="btnAddStudent">+ Ajouter un élève</button>
+      </div>
+    </header>
+
+    <div id="addPanelContainer"></div>
+    <div id="summaryBar" class="summary-bar"></div>
+
+    <div class="search-bar">
+      <span class="search-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>
+      <input type="search" id="studentSearch" placeholder="Rechercher un élève…" autocomplete="off">
+      <button type="button" class="search-clear" id="searchClear" title="Effacer" hidden>✕</button>
+      <span class="search-hint" id="searchHint"></span>
+    </div>
+
+    <section class="card table-card">
+      <div class="table-wrap">
+        <table class="student-table" id="studentTable">${thead}
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>`;
+
+  const tbody = main.querySelector('#studentTable tbody');
+  if (tbody) {
+    students.forEach((s) => tbody.appendChild(renderStudentRow(s)));
+    if (!students.length) renderEmptyTable();
+  }
+
+  renderAddPanel(niveau, classe, nextNumero);
+  renderSummaryBar(students);
+
+  if (highlightId) {
+    const row = main.querySelector(`#studentTable tr[data-student-id="${highlightId}"]`);
+    if (row) {
+      row.classList.add('row-highlight');
+      row.scrollIntoView({ behavior: 'auto', block: 'center' });
+      setTimeout(() => row.classList.remove('row-highlight'), 3000);
+    }
+  }
+}
+
+function renderStudentRow(student) {
+  const tr = document.createElement('tr');
+  tr.dataset.studentId = student.id;
+  tr.draggable = true;
+  if (student.computed.hasRetard) tr.classList.add('row-retard');
+  else if (student.computed.moisPayes === MOIS_ORDER.length) tr.classList.add('row-complet');
+
+  const payesClass = student.computed.moisPayes === MOIS_ORDER.length
+    ? 'payes-ok'
+    : (student.computed.moisPayes < 5 ? 'payes-warn' : 'payes-default');
+
+  const wa = student.computed.whatsapp
+    ? `<a class="btn-icon btn-wa" href="${esc(student.computed.whatsapp)}" target="_blank" rel="noopener" title="WhatsApp">💬</a>`
+    : '';
+
+  let cells = `<td class="col-num">${student.numero || ''}</td>`;
+  cells += `<td class="col-nom"><span class="editable-cell" data-field="nomComplet" title="Double-cliquez pour modifier">${esc(student.nomComplet)}</span></td>`;
+  cells += `<td class="col-contact"><span class="editable-cell mono" data-field="contactParent" title="Double-cliquez pour modifier">${esc(student.contactParent)}</span></td>`;
+  cells += `<td class="col-wa">${wa}</td>`;
+
+  MOIS_ORDER.forEach((mois) => {
+    const statut = student.paiements[mois] || '';
+    const title = moisLabel(mois);
+    cells += `<td class="col-mois"><button class="statut-chip ${statutClass(statut)}" data-student-id="${student.id}" data-mois="${mois}" data-statut="${statut}" title="${esc(title)}">${statutGlyph(statut)}</button></td>`;
+  });
+
+  cells += `<td class="col-note"><span class="editable-cell" data-field="note" title="${esc(student.note || 'Double-cliquez pour ajouter une note')}">${esc(student.note || '')}</span></td>`;
+  cells += `<td class="col-payes"><span class="payes-count ${payesClass}">${student.computed.moisPayes}/10</span></td>`;
+  cells += `<td class="col-retard${student.computed.hasRetard ? ' has-retard' : ''}">${student.computed.hasRetard ? '<span class="retard-flag">⚠️</span>' : ''}</td>`;
+  cells += `<td class="col-actions"><button class="btn-icon btn-allpaid" title="Tout marquer payé">✅</button><button class="btn-icon btn-delete" title="Supprimer">🗑️</button><span class="drag-handle" title="Réordonner">↕️</span></td>`;
+
+  tr.innerHTML = cells;
+  return tr;
+}
+
+function appendStudentRow(student) {
+  const tbody = document.querySelector('#studentTable tbody');
+  if (tbody) tbody.appendChild(renderStudentRow(student));
+}
+
+function rebuildTableRows(students) {
+  const tbody = document.querySelector('#studentTable tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  students.forEach((s) => tbody.appendChild(renderStudentRow(s)));
+}
+
+function updateCell(studentId, mois, statut) {
+  const chip = document.querySelector(`#studentTable .statut-chip[data-student-id="${studentId}"][data-mois="${mois}"]`);
+  if (!chip) return;
+  chip.className = `statut-chip ${statutClass(statut)}`;
+  chip.textContent = statutGlyph(statut);
+  chip.dataset.statut = statut;
+}
+
+function updateRowCell(row, student) {
+  if (!row) return;
+  const payesCell = row.querySelector('.payes-count');
+  if (payesCell) {
+    payesCell.classList.remove('payes-ok', 'payes-warn', 'payes-default');
+    if (student.computed.moisPayes === MOIS_ORDER.length) payesCell.classList.add('payes-ok');
+    else if (student.computed.moisPayes < 5) payesCell.classList.add('payes-warn');
+    else payesCell.classList.add('payes-default');
+    payesCell.textContent = `${student.computed.moisPayes}/10`;
+  }
+  const retardCell = row.querySelector('.col-retard');
+  if (retardCell) {
+    retardCell.classList.toggle('has-retard', student.computed.hasRetard);
+    retardCell.innerHTML = student.computed.hasRetard ? '<span class="retard-flag">⚠️</span>' : '';
+  }
+  const waCell = row.querySelector('.col-wa');
+  if (waCell) {
+    waCell.innerHTML = student.computed.whatsapp
+      ? `<a class="btn-icon" href="${esc(student.computed.whatsapp)}" target="_blank" rel="noopener" title="WhatsApp">💬</a>`
+      : '';
+  }
+  row.classList.toggle('row-retard', student.computed.hasRetard);
+  row.classList.toggle('row-complet', !student.computed.hasRetard && student.computed.moisPayes === MOIS_ORDER.length);
+}
+
+function renderAddPanel(niveau, classe, nextNumero) {
+  const container = document.getElementById('addPanelContainer');
+  if (!container) return;
+  container.innerHTML = `
+    <form class="add-panel card" id="addPanel" hidden>
+      <div class="add-title">Ajouter un élève — ${esc(niveau)} · ${esc(classe)}</div>
+      <label class="field"><span class="field-label">Numéro</span>
+        <input type="number" id="addNumero" min="1" value="${nextNumero}">
+      </label>
+      <label class="field"><span class="field-label">Nom complet</span>
+        <input type="text" id="addNom" required placeholder="Nom et prénom" autocomplete="off">
+      </label>
+      <label class="field"><span class="field-label">Contact parent</span>
+        <input type="tel" id="addContact" placeholder="+216 55 000 000" autocomplete="off">
+      </label>
+      <div class="add-actions">
+        <button type="submit" class="btn btn-primary" id="btnAddSubmit">Ajouter</button>
+        <button type="button" class="btn btn-ghost" id="btnAddCancel">Annuler</button>
+      </div>
+      <div class="inline-error" id="addError" hidden></div>
+    </form>`;
+}
+
+function showToast(message, type = 'info') {
+  let container = document.querySelector('.toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = '<span class="toast-dot"></span><span class="toast-msg"></span>';
+  toast.querySelector('.toast-msg').textContent = message;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
+}
+
+function renderYearOptions(menu, years, activeAnnee) {
+  if (!menu) return;
+  menu.innerHTML = years.map((y) =>
+    `<button type="button" class="year-option${y === activeAnnee ? ' current' : ''}" data-annee="${esc(y)}">${esc(y)}</button>`
+  ).join('');
+}
+
+function renderEmptyTable() {
+  const tbody = document.querySelector('#studentTable tbody');
+  if (tbody && !tbody.children.length) {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td colspan="${10 + 8}" class="empty-cell" style="text-align:center;color:var(--text-tertiary);padding:32px;">Aucun élève dans cette classe.</td>`;
+    tbody.appendChild(row);
+  }
+}
+
+==================== FILE: js/app.js ====================
+
+/* js/app.js — entry point, wires everything together and handles navigation */
+
+let currentView = 'dashboard';
+let currentNiveau = null;
+let currentClasse = null;
+let highlightStudentId = null;
+let classeStudents = [];
+
+/* ---------- School year ---------- */
+const YEAR_COUNT = 10;
+
+function baseAnnee() {
+  const now = new Date();
+  const y = now.getFullYear();
+  return now.getMonth() >= 7 ? y : y - 1; // nouvelle saison dès août
+}
+
+function anneesProposees() {
+  const b = baseAnnee();
+  return Array.from({ length: YEAR_COUNT }, (_, i) => `${b + i}-${b + i + 1}`);
+}
+
+let ANNEE = (function () {
+  try {
+    const saved = localStorage.getItem('slah_annee');
+    if (saved && /^\d{4}-\d{4}$/.test(saved)) return saved;
+  } catch (error) { /* ignore */ }
+  return `${baseAnnee()}-${baseAnnee() + 1}`;
+})();
+
+const STRUCTURE = [
+  { niveau: '7ème Primaire',     classes: ['Classe A', 'Classe B'] },
+  { niveau: '8ème Primaire',     classes: ['Classe A', 'Classe B'] },
+  { niveau: '9ème Primaire',     classes: ['Classe A', 'Classe B'] },
+  { niveau: '1ère Secondaire',   classes: ['Classe A', 'Classe B'] },
+  { niveau: '2ème Secondaire',   classes: ['ECO', 'Info+Science'] },
+  { niveau: '3ème Secondaire',   classes: ['ECO', 'Info'] },
+  { niveau: 'Bac',               classes: ['ECO', 'Info'] }
+];
+
+/* ---------- État dans l'URL (#/classe/...) : le rafraîchissement reste sur place ---------- */
+
+let suppressHashChange = false;
+
+function updateHash(view, niveau, classe) {
+  let target = '#/dashboard';
+  if (view === 'classe' && niveau && classe) {
+    target = '#/classe/' + encodeURIComponent(niveau) + '/' + encodeURIComponent(classe);
+  }
+  if (location.hash === target) return;
+  suppressHashChange = true;
+  location.hash = target;
+  // Si aucun événement hashchange ne se déclenche, réarme le garde-fou
+  setTimeout(() => { suppressHashChange = false; }, 0);
+}
+
+function parseHash() {
+  const raw = location.hash.replace(/^#\/?/, '');
+  if (!raw || raw.startsWith('dashboard')) return { view: 'dashboard' };
+  const parts = raw.split('/').map((p) => {
+    try { return decodeURIComponent(p); } catch (error) { return p; }
+  });
+  if (parts[0] === 'classe' && parts.length >= 3) {
+    const group = STRUCTURE.find((g) => g.niveau === parts[1]);
+    if (group && group.classes.includes(parts[2])) {
+      return { view: 'classe', niveau: parts[1], classe: parts[2] };
+    }
+  }
+  return { view: 'dashboard' };
+}
+
+window.addEventListener('hashchange', () => {
+  if (suppressHashChange) { suppressHashChange = false; return; }
+  const s = parseHash();
+  navigateTo(s.view, s.niveau || null, s.classe || null);
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('Rejet non géré:', e.reason);
+  if (!(e.reason && e.reason.redirecting)) {
+    const detail = String((e.reason && (e.reason.message || e.reason)) || '').slice(0, 140);
+    showToast('Erreur inattendue. Réessayez.' + (detail ? ' [' + detail + ']' : ''), 'error');
+  }
+});
+
+window.addEventListener('error', (e) => {
+  console.error('Erreur JavaScript:', e.error || e.message);
+  const detail = String((e.error && e.error.message) || e.message || '').slice(0, 140);
+  showToast('Erreur inattendue. Réessayez.' + (detail ? ' [' + detail + ']' : ''), 'error');
+});
+
+function isAuthRedirect(error) {
+  return !!(error && error.redirecting);
+}
+
+async function navigateTo(view, niveau = null, classe = null, studentId = null) {
+  closeRailFlyout();
+  currentView = view;
+  currentNiveau = niveau;
+  currentClasse = classe;
+  highlightStudentId = studentId;
+  updateHash(view, niveau, classe);
+  renderSidebar(niveau, classe);
+  renderIconRail(niveau);
+  const token = showLoadingState();
+
+  try {
+    if (view === 'dashboard') {
+      // Une seule paire de requêtes : les stats sont déduites localement
+      const allStudents = await getEnrichedStudents(ANNEE);
+      if (token !== loadToken) return;
+      const lateStudents = allStudents.filter((s) => s.computed.hasRetard);
+      const riskStudents = allStudents.filter((s) => !s.computed.hasRetard && moisImpayes(s.paiements).length > 0);
+      const partialStudents = allStudents.filter((s) => MOIS_ORDER.some((m) => s.paiements[m] === 'partiel'));
+      renderDashboard({ lateStudents, riskStudents, partialStudents }, computeStatsFromStudents(allStudents));
+    } else if (view === 'classe') {
+      const students = await getClasseData(niveau, classe, ANNEE);
+      if (token !== loadToken) return;
+      classeStudents = students;
+      renderClasseView(niveau, classe, students, studentId);
+      wireSearch();
+    }
+  } catch (error) {
+    console.error(error);
+    if (!isAuthRedirect(error)) {
+      showToast(error.message || 'Erreur inattendue.', 'error');
+      const main = document.getElementById('mainContent');
+      if (main) {
+        const msg = esc(error.message || 'Erreur inattendue.');
+        main.innerHTML = `
+          <div class="error-state">
+            <div class="error-state-msg">${msg}</div>
+            <button class="btn btn-primary" id="btnRetry">Réessayer</button>
+          </div>`;
+        const retryBtn = document.getElementById('btnRetry');
+        if (retryBtn) {
+          retryBtn.addEventListener('click', () => navigateTo(view, niveau, classe, studentId));
+        }
+      }
+    }
+  } finally {
+    if (token === loadToken) hideLoadingState();
+  }
+}
+
+let loadToken = 0;
+let loadWatchdog = null;
+
+function showLoadingState() {
+  loadToken += 1;
+  const overlay = document.getElementById('loadingOverlay');
+  if (overlay) overlay.hidden = false;
+  clearTimeout(loadWatchdog);
+  loadWatchdog = setTimeout(() => {
+    const ov = document.getElementById('loadingOverlay');
+    if (ov) ov.hidden = true;
+    showToast('Chargement trop long. Vérifiez votre connexion.', 'error');
+  }, 10000);
+  return loadToken;
+}
+
+function hideLoadingState() {
+  clearTimeout(loadWatchdog);
+  const overlay = document.getElementById('loadingOverlay');
+  if (overlay) overlay.hidden = true;
+}
+
+/* ---------- Sélecteur d'année scolaire ---------- */
+
+function closeYearMenus() {
+  document.querySelectorAll('.year-menu').forEach((m) => { m.hidden = true; });
+}
+
+function toggleYearMenu(menu) {
+  if (!menu) return;
+  const willOpen = menu.hidden;
+  closeYearMenus();
+  if (!willOpen) return;
+  menu.hidden = false;
+  menu.innerHTML = '<div class="year-loading">…</div>';
+  fillYearMenu(menu);
+}
+
+async function fillYearMenu(menu) {
+  let dbYears = [];
+  try {
+    dbYears = await getAnneesScolaires() || [];
+  } catch (error) {
+    console.error(error);
+  }
+  if (menu.hidden) return;
+  const years = [...new Set([...dbYears, ANNEE, ...anneesProposees()])].sort();
+  renderYearOptions(menu, years, ANNEE);
+}
+
+async function setAnnee(annee) {
+  closeYearMenus();
+  if (!/^\d{4}-\d{4}$/.test(annee) || annee === ANNEE) return;
+  ANNEE = annee;
+  try { localStorage.setItem('slah_annee', ANNEE); } catch (error) { /* ignore */ }
+  const badge = document.getElementById('anneeBadge');
+  if (badge) badge.textContent = ANNEE.replace('-', '\u2013');
+  await navigateTo(currentView === 'classe' ? 'classe' : 'dashboard', currentNiveau, currentClasse);
+}
+
+function setupYearPicker() {
+  document.addEventListener('click', (e) => {
+    const option = e.target.closest('[data-annee]');
+    if (option) { setAnnee(option.dataset.annee); return; }
+    if (e.target.closest('#anneeBadge') || e.target.closest('#yearPill')) {
+      const wrap = e.target.closest('.year-wrap');
+      toggleYearMenu(wrap && wrap.querySelector('.year-menu'));
+      return;
+    }
+    if (!e.target.closest('.year-wrap')) {
+      closeYearMenus();
+      const reportMenu = document.getElementById('reportMenu');
+      if (reportMenu && !e.target.closest('.report-wrap')) reportMenu.hidden = true;
+    }
+  });
+}
+
+/* ---------- Rapport classe : impression & export CSV ---------- */
+
+const STATUT_LABELS = { paye: 'Payé', impaye: 'Impayé', partiel: 'Partiel' };
+
+/* Encodage Windows-1252 : Excel décode nativement, les accents restent corrects */
+const CP1252_EXTRA = {
+  0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84, 0x2026: 0x85,
+  0x2020: 0x86, 0x2021: 0x87, 0x02C6: 0x88, 0x2030: 0x89, 0x0160: 0x8A,
+  0x2039: 0x8B, 0x0152: 0x8C, 0x017D: 0x8E, 0x2018: 0x91, 0x2019: 0x92,
+  0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97,
+  0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B, 0x0153: 0x9C,
+  0x017E: 0x9E, 0x0178: 0x9F
+};
+
+function toCp1252Bytes(str) {
+  const bytes = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    if (c < 256) bytes[i] = c;
+    else if (CP1252_EXTRA[c] !== undefined) bytes[i] = CP1252_EXTRA[c];
+    else bytes[i] = 63; // ?
+  }
+  return bytes;
+}
+
+function classeFileSlug() {
+  const raw = `${currentNiveau || 'classe'}-${currentClasse || ''}-${ANNEE}`;
+  return raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-');
+}
+
+function exportClasseCsv() {
+  const head = ['Niveau', 'Classe', 'Année', 'Numéro', 'Nom complet', 'Contact parent', 'Note']
+    .concat(MOIS_ORDER.map((m) => moisLabel(m)))
+    .concat(['Mois payés', 'En retard']);
+  const lines = [head];
+  classeStudents.forEach((s) => {
+    lines.push([
+      s.niveau, s.classe, s.anneeScolaire, s.numero || '', s.nomComplet,
+      s.contactParent || '', s.note || ''
+    ].concat(MOIS_ORDER.map((m) => STATUT_LABELS[s.paiements[m]] || ''))
+     .concat([`${s.computed.moisPayes}/10`, s.computed.hasRetard ? 'Oui' : 'Non']));
+  });
+  const csv = 'sep=;\r\n' + lines
+    .map((r) => r.map((v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';'))
+    .join('\r\n');
+  const blob = new Blob([toCp1252Bytes(csv)], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rapport-${classeFileSlug()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('Export CSV téléchargé.', 'success');
+}
+
+function buildPrintReport() {
+  const moisCourant = moisCourantKey();
+  const payesCeMois = classeStudents.filter((s) => s.paiements[moisCourant] === 'paye').length;
+  const retards = classeStudents.filter((s) => s.computed.hasRetard).length;
+  const genere = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  let rows = '';
+  [...classeStudents]
+    .sort((a, b) => (a.numero || 0) - (b.numero || 0))
+    .forEach((s) => {
+      let cells = `<td class="p-num">${s.numero || ''}</td><td class="p-nom">${esc(s.nomComplet)}${s.note ? `<span class="p-note">${esc(s.note)}</span>` : ''}</td><td>${esc(s.contactParent || '')}</td>`;
+      MOIS_ORDER.forEach((m) => { cells += `<td class="p-mois">${statutGlyph(s.paiements[m])}</td>`; });
+      cells += `<td class="p-payes">${s.computed.moisPayes}/10</td><td class="p-retard">${s.computed.hasRetard ? '⚠' : ''}</td>`;
+      rows += `<tr>${cells}</tr>`;
+    });
+
+  let heads = '<tr><th>#</th><th>Nom complet</th><th>Contact</th>';
+  MOIS_ORDER.forEach((m) => { heads += `<th>${esc(MOIS_COURTS[m])}</th>`; });
+  heads += '<th>Payés</th><th>Retard</th></tr>';
+
+  return `
+    <div class="p-head">
+      <div class="p-title">SLAH Academy — ${esc(currentNiveau || '')} · ${esc(currentClasse || '')}</div>
+      <div class="p-sub">Année ${esc(ANNEE)} · Généré le ${genere}</div>
+      <div class="p-stats">${classeStudents.length} élèves · ${payesCeMois} payés en ${esc(moisLabel(moisCourant))} · ${retards} en retard</div>
+    </div>
+    <table class="p-table"><thead>${heads}</thead><tbody>${rows || '<tr><td colspan="15" class="p-empty">Aucun élève.</td></tr>'}</tbody></table>
+    <div class="p-legend">Légende : ✓ payé · ✗ impayé · ~ partiel · · non renseigné</div>`;
+}
+
+function printClasse() {
+  let holder = document.getElementById('printReport');
+  if (!holder) {
+    holder = document.createElement('div');
+    holder.id = 'printReport';
+    document.body.appendChild(holder);
+  }
+  holder.innerHTML = buildPrintReport();
+  window.print();
+}
+
+async function init() {
+  try {
+    initSupabase();
+  } catch (error) {
+    console.error(error);
+    window.location.href = 'index.html';
+    return;
+  }
+
+  const session = await getSession();
+  if (!session) {
+    window.location.href = 'index.html';
+    return;
+  }
+
+  const emailEl = document.getElementById('userEmail');
+  if (emailEl && session.user && session.user.email) {
+    emailEl.textContent = session.user.email;
+  }
+
+  const badge = document.getElementById('anneeBadge');
+  if (badge) badge.textContent = ANNEE.replace('-', '\u2013');
+
+  // Event delegation: sidebar navigation
+  const sideNav = document.getElementById('sideNav');
+  if (sideNav) {
+    sideNav.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-view], [data-niveau]');
+      if (!btn) return;
+      closeDrawer();
+      if (btn.dataset.view === 'dashboard') {
+        navigateTo('dashboard');
+      } else if (btn.dataset.niveau) {
+        navigateTo('classe', btn.dataset.niveau, btn.dataset.classe);
+      }
+      // Panneau flottant : se referme après navigation
+      if (!navPinned) document.documentElement.classList.remove('nav-open');
+    });
+  }
+
+  // Logout
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      await logout();
+      window.location.href = 'index.html';
+    });
+  }
+
+  // Global click delegation for dynamically rendered content
+  document.addEventListener('click', handleGlobalClick);
+  document.addEventListener('dblclick', handleGlobalDblClick);
+  document.addEventListener('submit', handleGlobalSubmit);
+
+  setupDragAndDrop();
+  setupYearPicker();
+  setupMobileNav();
+  setupIconRail();
+  setupExpandHint();
+
+  // Restaure la vue depuis l'URL (#/classe/...) — sinon tableau de bord
+  const initial = parseHash();
+  await navigateTo(initial.view, initial.niveau || null, initial.classe || null);
+}
+
+function handleGlobalClick(e) {
+  // Only care about clicks inside #mainContent (tables, add panel)
+  const main = document.getElementById('mainContent');
+  if (!main || !main.contains(e.target)) return;
+
+  // Month statut chip → optimistic update
+  const chip = e.target.closest('.statut-chip');
+  if (chip) {
+    handleChipClick(chip);
+    return;
+  }
+
+  // Back to dashboard from a classe view
+  const backBtn = e.target.closest('#btnBackDashboard');
+  if (backBtn) {
+    navigateTo('dashboard');
+    return;
+  }
+
+  // Rapport : menu imprimer / exporter
+  const reportBtn = e.target.closest('#btnReport');
+  if (reportBtn) {
+    const menu = document.getElementById('reportMenu');
+    if (menu) menu.hidden = !menu.hidden;
+    return;
+  }
+  const reportAction = e.target.closest('[data-report-action]');
+  if (reportAction) {
+    const menu = document.getElementById('reportMenu');
+    if (menu) menu.hidden = true;
+    if (reportAction.dataset.reportAction === 'csv') exportClasseCsv();
+    else printClasse();
+    return;
+  }
+
+  // Bulk: whole class paid for one month (header ✓)
+  const markBtn = e.target.closest('.th-mark');
+  if (markBtn) {
+    beginMonthBulk(markBtn);
+    return;
+  }
+
+  // Bulk: all months paid for one student
+  const allPaidBtn = e.target.closest('.btn-allpaid');
+  if (allPaidBtn) {
+    const tr = allPaidBtn.closest('tr');
+    if (tr) markStudentAllPaid(tr.dataset.studentId);
+    return;
+  }
+
+  // Delete / confirm buttons
+  const delBtn = e.target.closest('.btn-delete');
+  if (delBtn) {
+    const tr = delBtn.closest('tr');
+    if (tr) showDeleteConfirm(tr);
+    return;
+  }
+
+  const yesBtn = e.target.closest('.btn-confirm-yes');
+  if (yesBtn) {
+    const tr = yesBtn.closest('tr');
+    if (tr) doDeleteStudent(tr);
+    return;
+  }
+
+  const noBtn = e.target.closest('.btn-confirm-no');
+  if (noBtn) {
+    const tr = noBtn.closest('tr');
+    if (tr) hideDeleteConfirm(tr);
+    return;
+  }
+
+  // Add student toggle
+  const addBtn = e.target.closest('#btnAddStudent');
+  if (addBtn) {
+    toggleAddPanel();
+    return;
+  }
+  const cancelBtn = e.target.closest('#btnAddCancel');
+  if (cancelBtn) {
+    closeAddPanel();
+    return;
+  }
+}
+
+function handleGlobalDblClick(e) {
+  const main = document.getElementById('mainContent');
+  if (!main || !main.contains(e.target)) return;
+
+  const cell = e.target.closest('.editable-cell');
+  if (cell) {
+    startInlineEdit(cell);
+  }
+}
+
+function handleGlobalSubmit(e) {
+  const main = document.getElementById('mainContent');
+  if (!main || !main.contains(e.target)) return;
+
+  const form = e.target.closest('#addPanel');
+  if (form) {
+    e.preventDefault();
+    doAddStudent(form);
+  }
+}
+
+/* ---------- Month cell optimistic update ---------- */
+
+function handleChipClick(chip) {
+  const studentId = chip.dataset.studentId;
+  const mois = chip.dataset.mois;
+  const currentStatut = chip.dataset.statut || '';
+  const next = nextStatut(currentStatut);
+
+  const student = classeStudents.find((s) => s.id === studentId);
+  if (!student) return;
+
+  // Optimistic update — apply to memory + UI immediately
+  student.paiements[mois] = next;
+  refreshComputed(student);
+  updateCell(studentId, mois, next);
+  chip.classList.add('chip-loading');
+
+  const prevStatut = currentStatut;
+  const revert = () => {
+    student.paiements[mois] = prevStatut;
+    refreshComputed(student);
+    updateCell(studentId, mois, prevStatut);
+    updateRowAfterChange(studentId);
+    renderSummaryBar(classeStudents);
+  };
+
+  const run = async () => {
+    try {
+      if (next === '') {
+        await deletePaiement(studentId, mois);
+      } else {
+        await setPaiement(studentId, mois, next);
+      }
+      chip.classList.remove('chip-loading');
+      updateRowAfterChange(studentId);
+      renderSummaryBar(classeStudents);
+    } catch (error) {
+      console.error(error);
+      chip.classList.remove('chip-loading');
+      if (isAuthRedirect(error)) return;
+      revert();
+      showToast('Erreur — réessayez.', 'error');
+    }
+  };
+  run();
+}
+
+function refreshComputed(student) {
+  student.computed.moisPayes = moisPayes(student.paiements);
+  student.computed.moisManquants = moisManquants(student.paiements);
+  student.computed.hasRetard = hasRetard(student.paiements);
+  student.computed.whatsapp = whatsappLink(student.contactParent);
+}
+
+/* ---------- Recherche élève ---------- */
+
+function normText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function applySearchFilter() {
+  const input = document.getElementById('studentSearch');
+  if (!input) return;
+  const clearBtn = document.getElementById('searchClear');
+  const hint = document.getElementById('searchHint');
+  const q = normText(input.value.trim());
+  const tbody = document.querySelector('#studentTable tbody');
+  const rows = Array.from(document.querySelectorAll('#studentTable tbody tr[data-student-id]'));
+  let visible = 0;
+
+  rows.forEach((tr) => {
+    const s = classeStudents.find((x) => x.id === tr.dataset.studentId);
+    const hay = s
+      ? `${normText(s.nomComplet)} ${normText(s.contactParent)} ${s.numero || ''}`
+      : normText(tr.textContent);
+    const show = !q || hay.includes(q);
+    tr.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  if (clearBtn) clearBtn.hidden = !input.value;
+  if (hint) hint.textContent = q && rows.length ? `${visible}/${rows.length} affichés` : '';
+
+  let emptyRow = tbody && tbody.querySelector('tr.search-empty');
+  if (!visible && rows.length) {
+    if (!emptyRow) {
+      emptyRow = document.createElement('tr');
+      emptyRow.className = 'search-empty';
+      emptyRow.innerHTML = `<td colspan="${MOIS_ORDER.length + 8}" style="text-align:center;color:var(--text-tertiary);padding:28px;"></td>`;
+      tbody.appendChild(emptyRow);
+    }
+    emptyRow.style.display = '';
+    emptyRow.querySelector('td').textContent = `Aucun élève trouvé pour « ${input.value.trim()} ».`;
+  } else if (emptyRow) {
+    emptyRow.remove();
+  }
+}
+
+function wireSearch() {
+  const input = document.getElementById('studentSearch');
+  if (!input) return;
+  input.addEventListener('input', applySearchFilter);
+  const clearBtn = document.getElementById('searchClear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      applySearchFilter();
+      input.focus();
+    });
+  }
+}
+
+/* ---------- Marquage groupé ---------- */
+
+async function markStudentAllPaid(studentId) {
+  const student = classeStudents.find((s) => s.id === studentId);
+  if (!student) return;
+  const months = MOIS_ORDER.filter((m) => student.paiements[m] !== 'paye');
+  if (!months.length) {
+    showToast('Tous les mois sont déjà payés.', 'info');
+    return;
+  }
+
+  const snapshot = months.map((m) => [m, student.paiements[m]]);
+  months.forEach((m) => { student.paiements[m] = 'paye'; });
+  refreshComputed(student);
+  months.forEach((m) => updateCell(studentId, m, 'paye'));
+  updateRowAfterChange(studentId);
+  renderSummaryBar(classeStudents);
+
+  try {
+    await Promise.all(months.map((m) => setPaiement(studentId, m, 'paye')));
+    showToast(`${months.length} mois mis à jour — élève à jour.`, 'success');
+  } catch (error) {
+    console.error(error);
+    if (isAuthRedirect(error)) return;
+    snapshot.forEach(([m, prev]) => { student.paiements[m] = prev; updateCell(studentId, m, prev); });
+    refreshComputed(student);
+    updateRowAfterChange(studentId);
+    renderSummaryBar(classeStudents);
+    showToast('Erreur — réessayez.', 'error');
+  }
+}
+
+function restoreMonthTh(th, mois) {
+  delete th.dataset.confirming;
+  th.innerHTML = `<span>${esc(MOIS_COURTS[mois])}</span><button type="button" class="th-mark" data-mois="${mois}" title="Classe entière « payé » en ${esc(moisLabel(mois))}">✓</button>`;
+}
+
+function beginMonthBulk(btn) {
+  const th = btn.closest('th');
+  const mois = btn.dataset.mois;
+  if (!th || !mois || th.dataset.confirming === '1') return;
+  if (!classeStudents.some((s) => s.paiements[mois] !== 'paye')) {
+    showToast(`Classe déjà à jour pour ${moisLabel(mois)}.`, 'info');
+    return;
+  }
+  th.dataset.confirming = '1';
+  th.innerHTML = `<button type="button" class="th-bulk-yes">Tout ✓</button><button type="button" class="th-bulk-no">Non</button>`;
+  th.querySelector('.th-bulk-yes').addEventListener('click', () => doMonthBulk(mois, th));
+  th.querySelector('.th-bulk-no').addEventListener('click', () => restoreMonthTh(th, mois));
+}
+
+async function doMonthBulk(mois, th) {
+  th.innerHTML = '<div class="th-loading">…</div>';
+  const targets = classeStudents.filter((s) => s.paiements[mois] !== 'paye');
+
+  try {
+    await Promise.all(targets.map((s) => setPaiement(s.id, mois, 'paye')));
+    targets.forEach((s) => {
+      s.paiements[mois] = 'paye';
+      refreshComputed(s);
+      updateCell(s.id, mois, 'paye');
+      updateRowAfterChange(s.id);
+    });
+    renderSummaryBar(classeStudents);
+    restoreMonthTh(th, mois);
+    showToast(`${targets.length} élève(s) marqués « payé » — ${moisLabel(mois)}.`, 'success');
+  } catch (error) {
+    console.error(error);
+    if (!isAuthRedirect(error)) showToast('Erreur — réessayez.', 'error');
+    restoreMonthTh(th, mois);
+  }
+}
+
+/* ---------- Navigation mobile ---------- */
+
+function closeDrawer() {
+  const sidebar = document.querySelector('.sidebar');
+  const backdrop = document.getElementById('drawerBackdrop');
+  if (sidebar) sidebar.classList.remove('open');
+  if (backdrop) backdrop.hidden = true;
+}
+
+function setupMobileNav() {
+  const toggle = document.getElementById('navToggle');
+  const backdrop = document.getElementById('drawerBackdrop');
+  const sidebar = document.querySelector('.sidebar');
+  if (!toggle || !backdrop || !sidebar) return;
+  toggle.addEventListener('click', () => {
+    const open = sidebar.classList.toggle('open');
+    backdrop.hidden = !open;
+  });
+  backdrop.addEventListener('click', closeDrawer);
+}
+
+/* ---------- Rail d'icônes + panneau épinglable ---------- */
+
+let navPinned = true;
+let railFlyout = null;
+let expandedOnceSession = false;
+let flyoutFadeTimer = null;
+const FLYOUT_IDLE_MS = 4000; // disparaît 4 s après que la souris l'a quitté sans clic
+
+function clearFlyoutFade() {
+  clearTimeout(flyoutFadeTimer);
+  flyoutFadeTimer = null;
+}
+
+function scheduleFlyoutFade() {
+  clearFlyoutFade();
+  flyoutFadeTimer = setTimeout(() => {
+    if (!railFlyout) return;
+    railFlyout.classList.add('fading');
+    setTimeout(() => closeRailFlyout(), 280);
+  }, FLYOUT_IDLE_MS);
+}
+
+function closeRailFlyout() {
+  clearFlyoutFade();
+  if (railFlyout) {
+    railFlyout.remove();
+    railFlyout = null;
+  }
+}
+
+function openRailFlyout(btn, group) {
+  closeRailFlyout();
+  railFlyout = document.createElement('div');
+  railFlyout.className = 'rail-flyout';
+  railFlyout._niveau = group.niveau;
+
+  const title = document.createElement('div');
+  title.className = 'rail-flyout-title';
+  title.textContent = group.niveau;
+  railFlyout.appendChild(title);
+
+  group.classes.forEach((classe) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'rail-flyout-item' + (currentView === 'classe' && currentNiveau === group.niveau && currentClasse === classe ? ' active' : '');
+    item.textContent = classe;
+    item.addEventListener('click', () => {
+      navigateTo('classe', group.niveau, classe);
+      closeRailFlyout();
+    });
+    railFlyout.appendChild(item);
+  });
+
+  document.body.appendChild(railFlyout);
+  const rect = btn.getBoundingClientRect();
+  const top = Math.max(12, Math.min(rect.top, window.innerHeight - railFlyout.offsetHeight - 12));
+  railFlyout.style.top = top + 'px';
+  railFlyout.style.left = (rect.right + 10) + 'px';
+
+  // Le compte à rebours ne tourne que quand le pointeur a quitté flyout + icône
+  railFlyout.addEventListener('mouseenter', clearFlyoutFade);
+  railFlyout.addEventListener('mouseleave', scheduleFlyoutFade);
+  btn.addEventListener('mouseenter', clearFlyoutFade);
+  btn.addEventListener('mouseleave', scheduleFlyoutFade);
+  scheduleFlyoutFade();
+}
+
+function applyNavPin() {
+  document.documentElement.classList.toggle('nav-pinned', navPinned);
+  const pinBtn = document.getElementById('navPinBtn');
+  if (pinBtn) {
+    pinBtn.setAttribute('aria-pressed', String(navPinned));
+    pinBtn.title = navPinned ? 'Détacher et replier le menu (Ctrl+B)' : 'Fermer le menu';
+  }
+  try { localStorage.setItem('slah_nav_pinned', navPinned ? '1' : '0'); } catch (error) { /* ignore */ }
+}
+
+function setNavPinned(value) {
+  navPinned = !!value;
+  if (navPinned) expandedOnceSession = true;
+  applyNavPin();
+  if (!navPinned) {
+    document.documentElement.classList.remove('nav-open');
+  }
+}
+
+/* ---------- Indice d'expansion » : clignote toutes les 6 s ---------- */
+
+function setupExpandHint() {
+  const expandHint = document.getElementById('railExpandHint');
+  if (!expandHint) return;
+
+  expandHint.addEventListener('click', () => {
+    expandedOnceSession = true;
+    expandHint.classList.remove('show-flicker');
+    document.documentElement.classList.add('nav-open');
+  });
+
+    setInterval(() => {
+      if (
+        expandedOnceSession ||
+        navPinned ||
+        document.documentElement.classList.contains('nav-open') ||
+        expandHint.matches(':hover')
+      ) return;
+    expandHint.classList.add('show-flicker');
+    setTimeout(() => expandHint.classList.remove('show-flicker'), 1700);
+  }, 6000);
+}
+
+function setupIconRail() {
+  const rail = document.getElementById('iconRail');
+  const sidebar = document.querySelector('.sidebar');
+  const pinBtn = document.getElementById('navPinBtn');
+  if (!rail || !sidebar || !pinBtn) return;
+
+  let stored = null;
+  try {
+    localStorage.removeItem('slah_sidebar'); // ancien système peek
+    stored = localStorage.getItem('slah_nav_pinned');
+  } catch (error) { /* ignore */ }
+  navPinned = stored !== '0';
+  applyNavPin();
+
+  const isMobileViewport = () => window.matchMedia('(max-width: 900px)').matches;
+
+  pinBtn.addEventListener('click', () => {
+    // Mobile : la flèche referme le tiroir
+    if (isMobileViewport()) {
+      closeDrawer();
+      return;
+    }
+    // Panneau flottant ouvert : la flèche le referme directement
+    if (!navPinned && document.documentElement.classList.contains('nav-open')) {
+      document.documentElement.classList.remove('nav-open');
+      return;
+    }
+    // Panneau épinglé : la flèche le détache et le replie
+    setNavPinned(!navPinned);
+  });
+
+  rail.addEventListener('click', (e) => {
+    if (e.target.closest('[data-rail-logout]')) {
+      logout().then(() => { window.location.href = 'index.html'; });
+      return;
+    }
+    if (e.target.closest('[data-rail-view]')) {
+      document.documentElement.classList.add('nav-open');
+      expandedOnceSession = true;
+      // Déjà sur le tableau de bord : inutile de recharger
+      if (currentView !== 'dashboard') navigateTo('dashboard');
+      return;
+    }
+    const monoBtn = e.target.closest('[data-rail-niveau]');
+    if (monoBtn) {
+      const niveau = monoBtn.dataset.railNiveau;
+      const group = STRUCTURE.find((g) => g.niveau === niveau);
+      const firstClasse = group && group.classes[0];
+      const alreadyThere = currentView === 'classe' && currentNiveau === niveau && currentClasse === firstClasse;
+      if (alreadyThere || !firstClasse) {
+        // Déjà dans la première classe : le clic sert juste à refermer le flyout
+        closeRailFlyout();
+      } else {
+        navigateTo('classe', niveau, firstClasse);
+      }
+      return;
+    }
+  });
+
+  // Survol (ou focus clavier) d'un monogramme : flyout des classes,
+  // remplacé dès que l'on pointe un autre niveau, sinon il reste affiché
+  const showFlyoutFor = (monoBtn) => {
+    const group = STRUCTURE.find((g) => g.niveau === monoBtn.dataset.railNiveau);
+    if (!group || !group.classes.length) return;
+    if (railFlyout && railFlyout._niveau === group.niveau) return;
+    openRailFlyout(monoBtn, group);
+  };
+  rail.addEventListener('mouseover', (e) => {
+    const monoBtn = e.target.closest('[data-rail-niveau]');
+    if (monoBtn) showFlyoutFor(monoBtn);
+  });
+  rail.addEventListener('focusin', (e) => {
+    const monoBtn = e.target.closest('[data-rail-niveau]');
+    if (monoBtn) showFlyoutFor(monoBtn);
+  });
+
+  // Clic en dehors : referme flyout et panneau flottant
+  document.addEventListener('click', (e) => {
+    if (railFlyout && !e.target.closest('.rail-flyout') && !e.target.closest('[data-rail-niveau]')) {
+      closeRailFlyout();
+    }
+    if (!navPinned && document.documentElement.classList.contains('nav-open')) {
+      // Le bouton » vient d'ouvrir le panneau : ne pas le refermer sur ce même clic
+      if (
+        !e.target.closest('.sidebar') &&
+        !e.target.closest('.icon-rail') &&
+        !e.target.closest('.rail-expand-hint')
+      ) {
+        document.documentElement.classList.remove('nav-open');
+      }
+    }
+  });
+
+  // Changement de breakpoint : referme panneau flottant et flyout proprement
+  window.matchMedia('(max-width: 900px)').addEventListener('change', () => {
+    document.documentElement.classList.remove('nav-open');
+    closeRailFlyout();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 'b') {
+      e.preventDefault();
+      setNavPinned(!navPinned);
+    } else if (e.key === 'Escape') {
+      if (railFlyout) { closeRailFlyout(); return; }
+      if (!navPinned) document.documentElement.classList.remove('nav-open');
+    }
+  });
+}
+
+function updateRowAfterChange(studentId) {
+  const student = classeStudents.find((s) => s.id === studentId);
+  if (!student) return;
+  const tr = document.querySelector(`#studentTable tr[data-student-id="${studentId}"]`);
+  if (tr) updateRowCell(tr, student);
+}
+
+/* ---------- Inline edit ---------- */
+
+let editingCell = null;
+
+function startInlineEdit(cell) {
+  if (editingCell === cell) return;
+  if (editingCell) commitInlineEdit(true);
+
+  editingCell = cell;
+  cell.contentEditable = 'true';
+  cell.classList.add('editing');
+  cell.focus();
+  const range = document.createRange();
+  range.selectNodeContents(cell);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  cell.addEventListener('blur', handleInlineBlur);
+}
+
+function handleInlineBlur() {
+  if (editingCell) commitInlineEdit(false);
+}
+
+function commitInlineEdit(cancel) {
+  const cell = editingCell;
+  if (!cell) return;
+  editingCell = null;
+
+  const tr = cell.closest('tr');
+  const studentId = tr && tr.dataset.studentId;
+  const field = cell.dataset.field;
+  const student = classeStudents.find((s) => s.id === studentId);
+  if (!student) return;
+
+  const previousValue = String(student[field] == null ? '' : student[field]);
+  const newValue = cell.textContent.trim();
+
+  cell.contentEditable = 'false';
+  cell.classList.remove('editing');
+
+  if (cancel || previousValue === newValue) {
+    cell.textContent = previousValue;
+    return;
+  }
+
+  // Optimistic
+  student[field] = newValue;
+  if (field === 'contactParent') refreshComputed(student);
+  cell.textContent = newValue;
+  updateRowAfterChange(studentId);
+
+  const payload = {};
+  payload[field] = newValue;
+  updateStudent(studentId, payload)
+    .then(() => {})
+    .catch((error) => {
+      console.error(error);
+      if (isAuthRedirect(error)) return;
+      student[field] = previousValue;
+      if (field === 'contactParent') refreshComputed(student);
+      cell.textContent = previousValue;
+      updateRowAfterChange(studentId);
+      showToast('Erreur lors de la modification de l\u2019élève.', 'error');
+    });
+}
+
+function handleInlineKeydown(e) {
+  if (!editingCell) return;
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    commitInlineEdit(false);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    commitInlineEdit(true);
+  }
+}
+
+/* ---------- Delete with inline confirm ---------- */
+
+function showDeleteConfirm(tr) {
+  const actionsCell = tr.querySelector('.col-actions');
+  if (!actionsCell) return;
+  tr.classList.add('row-confirm');
+  actionsCell.innerHTML = `<span class="confirm-text">Supprimer ?</span>
+    <button class="btn-confirm-yes">Oui</button>
+    <button class="btn-confirm-no">Non</button>`;
+}
+
+function hideDeleteConfirm(tr) {
+  const studentId = tr.dataset.studentId;
+  const student = classeStudents.find((s) => s.id === studentId);
+  if (!student) return;
+  tr.classList.remove('row-confirm');
+  const newTr = renderStudentRow(student);
+  tr.replaceWith(newTr);
+  applySearchFilter();
+}
+
+function doDeleteStudent(tr) {
+  const studentId = tr.dataset.studentId;
+  tr.classList.add('row-deleting');
+
+  deleteStudent(studentId)
+    .then(() => {
+      classeStudents = classeStudents.filter((s) => s.id !== studentId);
+      tr.remove();
+      renderSummaryBar(classeStudents);
+      applySearchFilter();
+      showToast('Élève supprimé.', 'success');
+      if (!classeStudents.length) renderEmptyTable();
+    })
+    .catch((error) => {
+      console.error(error);
+      tr.classList.remove('row-deleting', 'row-confirm');
+      if (isAuthRedirect(error)) return;
+      hideDeleteConfirm(tr);
+      showToast(error.message || 'Erreur lors de la suppression de l\u2019élève.', 'error');
+    });
+}
+
+/* ---------- Drag and drop reorder ---------- */
+
+function setupDragAndDrop() {
+  const main = document.getElementById('mainContent');
+  if (!main) return;
+
+  main.addEventListener('dragstart', (e) => {
+    const tr = e.target.closest('#studentTable tbody tr[data-student-id]');
+    if (!tr) return;
+    tr.classList.add('dragging');
+    e.dataTransfer.setData('text/plain', tr.dataset.studentId);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  main.addEventListener('dragover', (e) => {
+    const tr = e.target.closest('#studentTable tbody tr[data-student-id]');
+    if (!tr) return;
+    e.preventDefault();
+    tr.classList.add('drag-over');
+  });
+
+  main.addEventListener('dragleave', (e) => {
+    const tr = e.target.closest('#studentTable tbody tr[data-student-id]');
+    if (tr) tr.classList.remove('drag-over');
+  });
+
+  main.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const targetTr = e.target.closest('#studentTable tbody tr[data-student-id]');
+    const sourceId = e.dataTransfer.getData('text/plain');
+    if (!targetTr || !sourceId || sourceId === targetTr.dataset.studentId) return;
+    const targetId = targetTr.dataset.studentId;
+    const allTr = Array.from(document.querySelectorAll('#studentTable tbody tr[data-student-id]'));
+    allTr.forEach((tr) => tr.classList.remove('dragging', 'drag-over'));
+    reorderRows(sourceId, targetId, allTr);
+  });
+
+  main.addEventListener('dragend', (e) => {
+    const tr = e.target.closest('#studentTable tbody tr');
+    if (tr) tr.classList.remove('dragging');
+    document.querySelectorAll('#studentTable tbody tr').forEach((t) => t.classList.remove('drag-over'));
+  });
+}
+
+function reorderRows(sourceId, targetId, allTr) {
+  const previousNumero = {};
+  classeStudents.forEach((s) => { previousNumero[s.id] = s.numero; });
+
+  const ids = allTr.map((tr) => tr.dataset.studentId);
+  const sourceIdx = ids.indexOf(sourceId);
+  const targetIdx = ids.indexOf(targetId);
+  if (sourceIdx < 0 || targetIdx < 0) return;
+
+  const reordered = [...ids];
+  const [moved] = reordered.splice(sourceIdx, 1);
+  reordered.splice(targetIdx, 0, moved);
+
+  // Apply new order + numero in memory
+  classeStudents = reordered.map((id, i) => {
+    const student = classeStudents.find((s) => s.id === id);
+    student.numero = i + 1;
+    return student;
+  });
+
+  rebuildTableRows(classeStudents);
+  renderSummaryBar(classeStudents);
+  applySearchFilter();
+
+  // Determine which students changed position
+  const changed = classeStudents.filter((s) => previousNumero[s.id] !== s.numero);
+
+  const persist = async () => {
+    try {
+      await Promise.all(changed.map((s) => updateStudent(s.id, { numero: s.numero })));
+    } catch (error) {
+      console.error(error);
+      if (isAuthRedirect(error)) return;
+      classeStudents = classeStudents.map((s) => ({ ...s, numero: previousNumero[s.id] }));
+      rebuildTableRows(classeStudents);
+      renderSummaryBar(classeStudents);
+      showToast('Erreur lors de la réorganisation des élèves.', 'error');
+    }
+  };
+  persist();
+}
+
+/* ---------- Add student ---------- */
+
+function toggleAddPanel() {
+  const panel = document.getElementById('addPanel');
+  const errorEl = document.getElementById('addError');
+  if (!panel) return;
+  panel.hidden = !panel.hidden;
+  if (errorEl) errorEl.hidden = true;
+  if (!panel.hidden) {
+    const nom = document.getElementById('addNom');
+    if (nom) nom.focus();
+  }
+}
+
+function closeAddPanel() {
+  const panel = document.getElementById('addPanel');
+  const errorEl = document.getElementById('addError');
+  if (panel) panel.hidden = true;
+  if (errorEl) errorEl.hidden = true;
+}
+
+function doAddStudent(form) {
+  const errorEl = document.getElementById('addError');
+  const nomComplet = document.getElementById('addNom').value.trim();
+  const numero = parseInt(document.getElementById('addNumero').value, 10);
+
+  if (!nomComplet) {
+    errorEl.textContent = 'Le nom complet est obligatoire.';
+    errorEl.hidden = false;
+    return;
+  }
+
+  const submitBtn = document.getElementById('btnAddSubmit');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Ajout…';
+
+  const payload = {
+    nomComplet,
+    contactParent: document.getElementById('addContact').value.trim(),
+    niveau: currentNiveau,
+    classe: currentClasse,
+    anneeScolaire: ANNEE,
+    numero: Number.isFinite(numero) && numero > 0 ? numero : (classeStudents.reduce((max, s) => Math.max(max, s.numero || 0), 0) + 1)
+  };
+
+  addStudent(payload)
+    .then((row) => {
+      const newStudent = enrichStudentLocal(row);
+      classeStudents.push(newStudent);
+      appendStudentRow(newStudent);
+      renderSummaryBar(classeStudents);
+      applySearchFilter();
+      closeAddPanel();
+      form.reset();
+      showToast('Élève ajouté.', 'success');
+    })
+    .catch((error) => {
+      console.error(error);
+      if (isAuthRedirect(error)) return;
+      errorEl.textContent = error.message || 'Erreur lors de l\u2019ajout de l\u2019élève.';
+      errorEl.hidden = false;
+    })
+    .finally(() => {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Ajouter';
+    });
+}
+
+function enrichStudentLocal(row) {
+  const paiements = {};
+  MOIS_ORDER.forEach((mois) => { paiements[mois] = ''; });
+  const student = {
+    id: row.id,
+    nomComplet: row.nom_complet,
+    contactParent: row.contact_parent || '',
+    note: row.note || '',
+    niveau: row.niveau,
+    classe: row.classe,
+    anneeScolaire: row.annee_scolaire,
+    numero: row.numero,
+    paiements
+  };
+  student.computed = {
+    moisPayes: moisPayes(paiements),
+    moisManquants: moisManquants(paiements),
+    hasRetard: hasRetard(paiements),
+    whatsapp: whatsappLink(student.contactParent)
+  };
+  return student;
+}
+
+document.addEventListener('keydown', handleInlineKeydown);
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => { init(); });
+} else {
+  init();
+}
+
+==================== FILE: vercel.json ====================
+
+{
+  "buildCommand": "echo 'const CONFIG = { SUPABASE_URL: \"'$SUPABASE_URL'\", SUPABASE_ANON_KEY: \"'$SUPABASE_ANON_KEY'\" };' > config.local.js",
+  "outputDirectory": ".",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ]
+}
+
+==================== FILE: .env.example ====================
+
+# Copy this file to config.local.js and fill in your real Supabase values.
+# config.local.js is gitignored — never commit real keys.
+#
+# On Vercel, set these two variables in the project settings (Settings → Environment Variables).
+# The buildCommand in vercel.json generates config.local.js from them automatically.
+
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+
+==================== FILE: favicon.svg ====================
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#0F0F0F"/>
+  <text x="32" y="45" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" fill="#3B82F6" text-anchor="middle">S</text>
+</svg>

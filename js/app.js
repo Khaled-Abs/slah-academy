@@ -1113,7 +1113,7 @@ function reorderRows(sourceId, targetId, allTr) {
     return student;
   });
 
-  rebuildTableRows(classeStudents);
+  moveRowsToOrder(classeStudents);
   renderSummaryBar(classeStudents);
   applySearchFilter();
 
@@ -1127,12 +1127,23 @@ function reorderRows(sourceId, targetId, allTr) {
       console.error(error);
       if (isAuthRedirect(error)) return;
       classeStudents = classeStudents.map((s) => ({ ...s, numero: previousNumero[s.id] }));
-      rebuildTableRows(classeStudents);
+      moveRowsToOrder(classeStudents);
       renderSummaryBar(classeStudents);
+      applySearchFilter();
       showToast('Erreur lors de la réorganisation des élèves.', 'error');
     }
   };
   persist();
+}
+
+/* Réordonne les <tr> existants sans les recréer (préserve l'état du DOM) */
+function moveRowsToOrder(students) {
+  const tbody = document.querySelector('#studentTable tbody');
+  if (!tbody) return;
+  students.forEach((s) => {
+    const tr = tbody.querySelector(`tr[data-student-id="${s.id}"]`);
+    if (tr) tbody.appendChild(tr);
+  });
 }
 
 /* ---------- Add student ---------- */
@@ -1171,6 +1182,8 @@ function doAddStudent(form) {
   submitBtn.disabled = true;
   submitBtn.textContent = 'Ajout…';
 
+  // NB : les paiements vivent dans une table séparée (upsert au clic sur une
+  // cellule) — rien à envoyer ici à la création de l'élève.
   const payload = {
     nomComplet,
     contactParent: document.getElementById('addContact').value.trim(),

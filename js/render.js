@@ -293,13 +293,6 @@ function appendStudentRow(student) {
   if (tbody) tbody.appendChild(renderStudentRow(student));
 }
 
-function rebuildTableRows(students) {
-  const tbody = document.querySelector('#studentTable tbody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  students.forEach((s) => tbody.appendChild(renderStudentRow(s)));
-}
-
 function updateCell(studentId, mois, statut) {
   const chip = document.querySelector(`#studentTable .statut-chip[data-student-id="${studentId}"][data-mois="${mois}"]`);
   if (!chip) return;
