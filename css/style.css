@@ -60,30 +60,6 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   --rail-w: 64px;
-
-  /* ---------- Densité (bascule « Compact ») ---------- */
-  --row-pad-y: 8px;
-  --chip-size: 30px;
-  --chip-font: 12px;
-  --card-pad: 20px 24px;
-  --stat-pad: 18px 20px;
-  --stat-gap: 10px;
-  --stat-value: 28px;
-  --summary-pad: 14px 18px;
-  --summary-value: 20px;
-}
-
-/* Mode compact : tout resserre d'un coup */
-html.compact {
-  --row-pad-y: 5px;
-  --chip-size: 24px;
-  --chip-font: 11px;
-  --card-pad: 14px 16px;
-  --stat-pad: 12px 14px;
-  --stat-gap: 7px;
-  --stat-value: 22px;
-  --summary-pad: 10px 14px;
-  --summary-value: 17px;
 }
 
 /* ---------- Mode sombre ---------- */
@@ -214,7 +190,7 @@ a {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-  padding: var(--card-pad);
+  padding: 20px 24px;
 }
 
 /* ---------- Buttons ---------- */
@@ -956,10 +932,10 @@ a {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-  padding: var(--stat-pad);
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: var(--stat-gap);
+  gap: 10px;
   transition: transform 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
 }
 
@@ -1002,8 +978,8 @@ a {
 
 .stat-value {
   font-family: var(--font-display);
-  font-size: var(--stat-value);
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
   line-height: 1;
   color: var(--ink-1);
   font-variant-numeric: tabular-nums;
@@ -1034,7 +1010,7 @@ a {
 }
 
 .summary-item {
-  padding: var(--summary-pad);
+  padding: 14px 18px;
 }
 
 .summary-item + .summary-item {
@@ -1043,7 +1019,7 @@ a {
 
 .summary-value {
   font-family: var(--font-display);
-  font-size: var(--summary-value);
+  font-size: 20px;
   font-weight: 700;
   line-height: 1.2;
   color: var(--ink-1);
@@ -1104,7 +1080,7 @@ a {
 }
 
 .student-table td {
-  padding: var(--row-pad-y) 8px;
+  padding: 8px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
   white-space: nowrap;
@@ -1263,10 +1239,10 @@ a {
 
 /* ---------- Statut chips ---------- */
 .statut-chip {
-  width: var(--chip-size);
-  height: var(--chip-size);
+  width: 30px;
+  height: 30px;
   border-radius: var(--radius-sm);
-  font-size: var(--chip-font);
+  font-size: 12px;
   font-weight: 600;
   line-height: 1;
   background: var(--surface-sunken);
@@ -1275,6 +1251,7 @@ a {
   position: relative;
   transition: transform 0.16s var(--ease-out), box-shadow 0.16s var(--ease-out),
               background-color 0.16s var(--ease-out);
+}
 
 .statut-chip:hover {
   transform: translateY(-1px);

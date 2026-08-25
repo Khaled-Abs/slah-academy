@@ -100,7 +100,6 @@ function renderDashboard(data, stats) {
       </div>
       <div class="dash-actions">
         <a class="btn btn-ghost" href="calendar.html" target="_blank" rel="noopener">📅 Calendrier</a>
-        <button type="button" class="btn btn-ghost js-density-toggle" aria-label="Basculer mode compact">≡ Compact</button>
         <span class="year-wrap">
           <button type="button" class="year-pill" id="yearPill">Année: ${esc(ANNEE)} ▾</button>
           <div class="year-menu" id="yearMenu" hidden></div>
@@ -213,7 +212,6 @@ function renderClasseView(niveau, classe, students, highlightId) {
             <button type="button" class="report-item" data-report-action="csv">📥 Exporter CSV</button>
           </div>
         </span>
-        <button type="button" class="btn btn-ghost js-density-toggle" aria-label="Basculer mode compact">≡ Compact</button>
         <button class="btn btn-primary" id="btnAddStudent">+ Ajouter un élève</button>
       </div>
     </header>
@@ -244,7 +242,6 @@ function renderClasseView(niveau, classe, students, highlightId) {
 
   renderAddPanel(niveau, classe, nextNumero);
   renderSummaryBar(students);
-  updateDensityButtons();
 
   if (highlightId) {
     const row = main.querySelector(`#studentTable tr[data-student-id="${highlightId}"]`);
