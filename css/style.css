@@ -552,57 +552,42 @@ a {
     margin-left: 268px;
   }
 
-  .nav-pin-btn {
+  /* Flèches jumelles : même bouton pour ouvrir (») et épingler/replier (❮) */
+  .nav-pin-btn,
+  html:not(.nav-pinned) .rail-expand-hint {
     width: 28px;
     height: 28px;
     border-radius: var(--radius-xs);
     border: none;
     background: transparent;
     color: var(--ink-3);
-    font-size: 12px;
+    font-size: 13px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+    transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out),
+                opacity 0.3s var(--ease-out);
   }
 
-  .nav-pin-btn:hover {
-    color: var(--ink-1);
-    background: var(--surface-sunken);
-  }
-
-  .rail-expand-hint {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  html:not(.nav-pinned) .rail-expand-hint {
-    position: fixed;
-    left: calc(12px + var(--rail-w) + 4px);
-    top: 86px;
-    transform: translateY(-50%);
-    z-index: 78;
-    width: 22px;
-    height: 38px;
-    background: var(--surface);
-    border: 1px solid var(--border-mid);
-    border-radius: var(--radius-xs);
-    box-shadow: var(--shadow-xs);
-    color: var(--ink-3);
-    font-family: var(--font-mono);
-    font-size: 15px;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.3s var(--ease-out), color 0.16s var(--ease-out),
-                border-color 0.16s var(--ease-out);
-  }
-
+  .nav-pin-btn:hover,
   html:not(.nav-pinned) .rail-expand-hint:hover {
-    color: var(--accent);
-    border-color: var(--accent);
+    background: var(--surface-sunken);
+    color: var(--ink-1);
     animation: none;
     opacity: 1;
+  }
+
+  /* Position propre à l'indice : chevauche le bord droit du rail,
+     aligné sur l'icône 🏠 */
+  html:not(.nav-pinned) .rail-expand-hint {
+    position: fixed;
+    left: calc(12px + var(--rail-w) - 14px);
+    top: 76px;
+    transform: translateY(-50%);
+    z-index: 86;
+    font-family: var(--font-mono);
+    font-size: 15px;
+    opacity: 0;
   }
 
   .rail-expand-hint.show-flicker {
@@ -729,8 +714,7 @@ a {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 16px 14px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: 16px 14px 8px;
 }
 
 .sidebar-logo {
@@ -741,23 +725,30 @@ a {
   margin-right: auto;
 }
 
-.annee-badge,
-.year-pill {
-  display: inline-block;
-  border: none;
-  background: var(--surface-sunken);
-  color: var(--ink-2);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+.sidebar-year {
+  padding: 0 16px 12px;
+  border-bottom: 1px solid var(--border);
 }
 
-.annee-badge:hover,
-.year-pill:hover {
-  background: var(--accent-soft);
+.annee-badge {
+  background: transparent;
+  padding: 4px 6px;
+  border-radius: var(--radius-xs);
+  color: var(--ink-2);
+}
+
+.annee-badge:hover {
   color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.year-pill {
+  background: var(--surface-sunken);
+}
+
+.year-pill:hover {
+  color: var(--ink-inverse);
+  background: var(--accent);
 }
 
 .year-wrap {
