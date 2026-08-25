@@ -2,3 +2,4 @@ config.local.js
 .env
 .env.local
 node_modules/
+_SHARE_ALL.txt
