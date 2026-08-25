@@ -787,6 +787,13 @@ function setNavPinned(value) {
   }
 }
 
+function updateDensityButtons() {
+  const compact = document.documentElement.classList.contains('compact');
+  document.querySelectorAll('.js-density-toggle').forEach((btn) => {
+    btn.setAttribute('aria-pressed', String(document.documentElement.classList.contains('compact')));
+  });
+}
+
 /* ---------- Indice d'expansion » : clignote toutes les 6 s ---------- */
 
 function setupExpandHint() {
@@ -891,6 +898,12 @@ function setupIconRail() {
   document.addEventListener('click', (e) => {
     if (railFlyout && !e.target.closest('.rail-flyout') && !e.target.closest('[data-rail-niveau]')) {
       closeRailFlyout();
+    }
+    // Bouton densité
+    if (e.target.closest('.js-density-toggle')) {
+      document.documentElement.classList.toggle('compact');
+      try { localStorage.setItem('slah_compact', document.documentElement.classList.contains('compact') ? '1' : '0'); } catch (e) {}
+      return;
     }
     if (!navPinned && document.documentElement.classList.contains('nav-open')) {
       // Le bouton » vient d'ouvrir le panneau : ne pas le refermer sur ce même clic
