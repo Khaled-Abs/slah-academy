@@ -1154,7 +1154,8 @@ a {
 /* ---------- Tables ---------- */
 .table-card {
   padding: 0;
-  overflow: hidden;
+  /* « clip » et non « hidden » : préserve les en-têtes collantes */
+  overflow: clip;
 }
 
 .table-card + .table-card {
