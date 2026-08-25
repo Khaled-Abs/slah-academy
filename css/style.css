@@ -714,7 +714,8 @@ a {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 16px 14px 8px;
+  padding: 16px 14px 12px;
+  border-bottom: 1px solid var(--border);
 }
 
 .sidebar-logo {
@@ -723,23 +724,6 @@ a {
   font-weight: 700;
   color: var(--ink-1);
   margin-right: auto;
-}
-
-.sidebar-year {
-  padding: 0 16px 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-.annee-badge {
-  background: transparent;
-  padding: 4px 6px;
-  border-radius: var(--radius-xs);
-  color: var(--ink-2);
-}
-
-.annee-badge:hover {
-  color: var(--accent);
-  background: var(--accent-soft);
 }
 
 .year-pill {
