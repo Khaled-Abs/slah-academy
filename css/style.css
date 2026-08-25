@@ -8,6 +8,7 @@
   --surface:         #FFFFFF;
   --surface-sunken:  #F0F1F6;
   --surface-hover:   #FAFAFD;
+  --scrim:           rgba(246, 247, 251, 0.85);
 
   /* Borders */
   --border:          #E7E8F0;
@@ -68,6 +69,7 @@
   --surface:         #1A202C;
   --surface-sunken:  #374151;
   --surface-hover:   #2D3748;
+  --scrim:           rgba(17, 24, 39, 0.85);
 
   --border:          #374151;
   --border-mid:      #4A5568;
@@ -925,7 +927,7 @@ a {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(246, 247, 251, 0.85);
+  background: var(--scrim);
   backdrop-filter: blur(4px);
   display: flex;
   flex-direction: column;
